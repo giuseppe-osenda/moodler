@@ -1,0 +1,20 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+    var completion = ViewBag.Completion;
+}
+
+<form asp-action="SendRequest">
+    <div class="form-group row">
+        <label for="colFormLabel" class="col-sm-2 col-form-label">Insert a phrase which describe the situation, emotion and context which corresponds to the music you would like to play</label>
+        <div class="col-sm-10">
+            <input type="text" name="request" class="form-control" id="colFormLabel" placeholder="e.g sunset with my girlfriend">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-outline-dark">Dark</button>
+</form>
+
+@if (completion != null)
+{
+    <h1>@completion</h1>
+}

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,8 @@ namespace Moodify.Controllers;
 public class HomeController(ILogger<HomeController> logger, IConfiguration configuration) : BaseController
 {
     private readonly ILogger<HomeController> _logger = logger;
-
+    private readonly string _chatGptApiKey = configuration.GetSection("Api:SecretKey").Value ?? "";
+    
     public IActionResult Index()
     {
         return View();
@@ -20,9 +22,8 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     [HttpPost]
     public IActionResult GetCategories(string request)
     {
-        var apikey = configuration.GetSection("Api:SecretKey").Value;
-
-        ChatClient client = new(model: "gpt-4o-mini", apikey);
+        
+        ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
 
         var formattedRequest =
             $"Give me in english one time of the day, one mood, one relationship and one musical taste which are related to : \\\"{request}\\\" separated by comma";
@@ -37,13 +38,12 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     private static string ExtractJson(string? input)
     {
         var match = Regex.Match(input, @"\{.*\}", RegexOptions.Singleline);
-        
+
         return match.Success ? match.Value : string.Empty;
     }
-    
+
     private static List<string> GetTrackNamesFromJson(string json)
     {
-        
         var trackNames = new List<string>();
         var jsonDocument = JsonDocument.Parse(json);
         var tracks = jsonDocument.RootElement.GetProperty("tracks").EnumerateArray();
@@ -55,23 +55,22 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 
         return trackNames;
     }
-    
+
     private List<string> GetTracksName(string completions)
     {
-        var apikey = configuration.GetSection("Api:SecretKey").Value;
-
-        ChatClient client = new(model: "gpt-4o-mini", apikey);
         
+        ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
+
         var formattedRequest =
             $" return me a json object with a list of 30 song names related to these categories: \\\"{completions}\\\".  json must have this structure {{\"tracks\": [{{\"title\" : \"value\"}}]}}";
-        
+
         ChatCompletion result = client.CompleteChat(formattedRequest);
 
         var content = result.Content[0].Text;
 
-        
+
         var json = ExtractJson(content);
-        
+
         var trackNames = GetTrackNamesFromJson(json);
 
         return trackNames;
@@ -80,25 +79,30 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     [HttpGet]
     public async Task<JsonResult> CreatePlaylist(string completions)
     {
+        await HttpContext.Session.LoadAsync();
         var spotifyClient = new SpotifyClient("");
-
-        if (!TempData.TryGetValue("access_token", out var value) ||
-            value is not string) //if there is no access_token user need to log in
+        var accessToken = HttpContext.Session.GetString("access_token");
+        var errorResult = new JsonResult("error");
+        var successResult = new JsonResult("Success");
+        
+         if (string.IsNullOrEmpty(accessToken)) //if there is no access_token user need to log in
         {
             TempData["error"] = "Please log in";
-            return new JsonResult("error");
+            return errorResult;
         }
-
-        if (IsTokenExpired() && !TempData.TryGetValue("refresh_token", out var refreshToken) &&
-            refreshToken is string token) //refresh token if expire
+        
+         var refreshToken = HttpContext.Session.GetString("refresh_token");
+         
+        if (IsTokenExpired() && !string.IsNullOrEmpty(refreshToken)) //refresh token if expire
         {
-            var refreshedToken = await RefreshToken(token);
+            var refreshedToken = await RefreshToken(refreshToken);
+            HttpContext.Session.SetString("refresh_token", refreshedToken.RefreshToken);
+            HttpContext.Session.SetString("access_token", refreshedToken.AccessToken);
+            HttpContext.Session.SetString("access_token_creation_date", refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
             spotifyClient = new SpotifyClient(refreshedToken.AccessToken);
         }
-
-        var accessToken = value as string;
-
-        var config = DefaultConfig.WithToken(accessToken!);
+        
+        var config = DefaultConfig.WithToken(accessToken);
         spotifyClient = new SpotifyClient(config);
 
         try
@@ -108,28 +112,26 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
                 await spotifyClient.Playlists.Create(user.Id, new PlaylistCreateRequest("Moodify - playlist"));
 
             var tracksName = GetTracksName(completions);
-            var trackIds = new List<string>();
+            var playlistItemModel = new PlaylistAddItemsRequest(new List<string>());
 
             foreach (var trackName in tracksName)
             {
                 var searchRequest = new SearchRequest(SearchRequest.Types.Track, trackName);
                 var searchResponse = await spotifyClient.Search.Item(searchRequest);
                 var trackId = searchResponse.Tracks.Items?.FirstOrDefault()?.Id;
-
-                if (trackId != null)
-                {
-                    trackIds.Add(trackId);
-                }
+                
+                if (trackId == null) continue;
+                var trackUri = $"spotify:track:{trackId}";
+                playlistItemModel.Uris.Add(trackUri);
             }
 
 
-            if (trackIds.Count != 0)
-            {
-                await spotifyClient.Playlists.AddItems(playlist.Id, new PlaylistAddItemsRequest(trackIds));
-            }
-            
+            if (playlistItemModel.Uris.Count == 0) return errorResult;
 
-            return new JsonResult("Success");
+            await spotifyClient.Playlists.AddItems(playlist.Id, playlistItemModel);
+
+
+            return successResult;
         }
         catch (Exception e)
         {
@@ -137,14 +139,14 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
         }
 
 
-        return new JsonResult("error");
+        return errorResult;
     }
 
     public RedirectResult Login()
     {
         var (verifier, challenge) = PKCEUtil.GenerateCodes();
 
-        TempData["verifier"] = verifier;
+        HttpContext.Session.SetString("verifier", verifier);
 
         var loginRequest = new LoginRequest(
             new Uri("https://localhost:7206/home/callback"),
@@ -169,8 +171,9 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 
     public async Task<RedirectToActionResult> Callback(string code)
     {
-        if (!TempData.TryGetValue("verifier", out var tryGetVerifier) ||
-            tryGetVerifier is not string verifier) //no verifier error handling
+        var verifier = HttpContext.Session.GetString("verifier");
+        
+        if (string.IsNullOrEmpty(verifier)) //no verifier error handling
         {
             TempData["error"] = "An error occured, please try again";
             return RedirectToAction("Index", "Home");
@@ -184,13 +187,12 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
                 new PKCETokenRequest("f4cd70cc16604aaf99eae2801a16a949", code,
                     new Uri("https://localhost:7206/home/callback"), verifier)
             );
-
-            //setting variable for utilities methods
-            TempData["access_token"] = initialResponse.AccessToken;
-            TempData["access_token_creation_date"] = initialResponse.CreatedAt;
-            TempData["refresh_token"] = initialResponse.RefreshToken;
+            
+            HttpContext.Session.SetString("access_token", initialResponse.AccessToken);
+            HttpContext.Session.SetString("access_token_creation_date", initialResponse.CreatedAt.ToString(CultureInfo.CurrentCulture));
+            HttpContext.Session.SetString("refresh_token", initialResponse.RefreshToken);
         }
-        catch (Exception e)
+        catch (Exception e) 
         {
             TempData["error"] = e.Message;
         }
@@ -201,11 +203,14 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 
     private bool IsTokenExpired()
     {
-        if (!TempData.TryGetValue("access_token_creation_date", out var tokenCreationDate) ||
-            tokenCreationDate is not DateTime)
-            return true;
+        var sessionTokenCreationDate = HttpContext.Session.GetString("access_token_creation_date");
 
-        return (DateTime.Now - (DateTime)tokenCreationDate).TotalHours > 1;
+        if (string.IsNullOrEmpty(sessionTokenCreationDate))
+            return true;
+        
+        var tokenCreationDate = DateTime.Parse(sessionTokenCreationDate);
+
+        return (DateTime.Now - tokenCreationDate).TotalHours > 1;
     }
 
     private async Task<PKCETokenResponse> RefreshToken(string refreshToken)

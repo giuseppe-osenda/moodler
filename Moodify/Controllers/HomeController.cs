@@ -13,7 +13,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 {
     private readonly ILogger<HomeController> _logger = logger;
     private readonly string _chatGptApiKey = configuration.GetSection("Api:SecretKey").Value ?? "";
-    
+
     public IActionResult Index()
     {
         return View();
@@ -22,7 +22,6 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     [HttpPost]
     public IActionResult GetCategories(string request)
     {
-        
         ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
 
         var formattedRequest =
@@ -58,7 +57,6 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 
     private List<string> GetTracksName(string completions)
     {
-        
         ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
 
         var formattedRequest =
@@ -84,24 +82,25 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
         var accessToken = HttpContext.Session.GetString("access_token");
         var errorResult = new JsonResult("error");
         var successResult = new JsonResult("Success");
-        
-         if (string.IsNullOrEmpty(accessToken)) //if there is no access_token user need to log in
+
+        if (string.IsNullOrEmpty(accessToken)) //if there is no access_token user need to log in
         {
             TempData["error"] = "Please log in";
             return errorResult;
         }
-        
-         var refreshToken = HttpContext.Session.GetString("refresh_token");
-         
+
+        var refreshToken = HttpContext.Session.GetString("refresh_token");
+
         if (IsTokenExpired() && !string.IsNullOrEmpty(refreshToken)) //refresh token if expire
         {
             var refreshedToken = await RefreshToken(refreshToken);
             HttpContext.Session.SetString("refresh_token", refreshedToken.RefreshToken);
             HttpContext.Session.SetString("access_token", refreshedToken.AccessToken);
-            HttpContext.Session.SetString("access_token_creation_date", refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
+            HttpContext.Session.SetString("access_token_creation_date",
+                refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
             spotifyClient = new SpotifyClient(refreshedToken.AccessToken);
         }
-        
+
         var config = DefaultConfig.WithToken(accessToken);
         spotifyClient = new SpotifyClient(config);
 
@@ -119,7 +118,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
                 var searchRequest = new SearchRequest(SearchRequest.Types.Track, trackName);
                 var searchResponse = await spotifyClient.Search.Item(searchRequest);
                 var trackId = searchResponse.Tracks.Items?.FirstOrDefault()?.Id;
-                
+
                 if (trackId == null) continue;
                 var trackUri = $"spotify:track:{trackId}";
                 playlistItemModel.Uris.Add(trackUri);
@@ -172,7 +171,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     public async Task<RedirectToActionResult> Callback(string code)
     {
         var verifier = HttpContext.Session.GetString("verifier");
-        
+
         if (string.IsNullOrEmpty(verifier)) //no verifier error handling
         {
             TempData["error"] = "An error occured, please try again";
@@ -187,12 +186,12 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
                 new PKCETokenRequest("f4cd70cc16604aaf99eae2801a16a949", code,
                     new Uri("https://localhost:7206/home/callback"), verifier)
             );
-            
+
             HttpContext.Session.SetString("access_token", initialResponse.AccessToken);
-            HttpContext.Session.SetString("access_token_creation_date", initialResponse.CreatedAt.ToString(CultureInfo.CurrentCulture));
+            SetCreationDate(initialResponse.CreatedAt);
             HttpContext.Session.SetString("refresh_token", initialResponse.RefreshToken);
         }
-        catch (Exception e) 
+        catch (Exception e)
         {
             TempData["error"] = e.Message;
         }
@@ -201,13 +200,28 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
             RedirectToAction("Index", "Home"); //once user auth is successful 
     }
 
+    private void SetCreationDate(DateTime initialResponseCreatedAt)
+    {
+        
+        var createdAt = initialResponseCreatedAt.ToString(CultureInfo.InvariantCulture);
+        var createdAtUtc = DateTime.Parse(createdAt, null, DateTimeStyles.AdjustToUniversal);
+        
+        // Ottieni il fuso orario locale
+        var localTimeZone = TimeZoneInfo.Local;
+
+        // Converte createdAt al fuso orario locale
+        DateTime createdAtLocal = TimeZoneInfo.ConvertTimeFromUtc(createdAtUtc, localTimeZone);
+        
+        HttpContext.Session.SetString("access_token_creation_date", createdAtLocal.ToString(CultureInfo.InvariantCulture));
+    }
+
     private bool IsTokenExpired()
     {
         var sessionTokenCreationDate = HttpContext.Session.GetString("access_token_creation_date");
 
         if (string.IsNullOrEmpty(sessionTokenCreationDate))
             return true;
-        
+
         var tokenCreationDate = DateTime.Parse(sessionTokenCreationDate);
 
         return (DateTime.Now - tokenCreationDate).TotalHours > 1;

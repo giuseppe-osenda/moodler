@@ -3,15 +3,15 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
+using Moodify.Helpers;
 using Moodify.Models;
 using OpenAI.Chat;
 using SpotifyAPI.Web;
 
 namespace Moodify.Controllers;
 
-public class HomeController(ILogger<HomeController> logger, IConfiguration configuration) : BaseController
+public class HomeController(ILogger<HomeController> logger, IConfiguration configuration, CategoriesHelper categoriesHelper) : BaseController
 {
-    private readonly ILogger<HomeController> _logger = logger;
     private readonly string _chatGptApiKey = configuration.GetSection("Api:SecretKey").Value ?? "";
 
     public IActionResult Index()
@@ -22,16 +22,54 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     [HttpPost]
     public IActionResult GetCategories(string request)
     {
+        TempData.Clear();
         ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
 
         var formattedRequest =
             $"Give me in english one time of the day, one mood, one relationship and one musical taste which are related to : \\\"{request}\\\" separated by comma";
 
-        ChatCompletion completion = client.CompleteChat(formattedRequest);
+        var completion = client.CompleteChat(formattedRequest).Value.ToString();
 
         ViewBag.Completion = completion;
+        
+        if (string.IsNullOrEmpty(completion))
+        {
+            TempData["error"] = "An error occured while trying to retrieve your categories, please try again";
+            return View("Index");
+        }
 
-        return View("Index");
+        var categories = completion.Trim('.').Split(',').ToList();
+        var homeViewModel = new HomeViewModel();
+
+        var dayTimes = categoriesHelper.GetDayTimes(categories[0]);
+        var moods = categoriesHelper.GetMoods(categories[1]);
+        var relationships = categoriesHelper.GetRelationships(categories[2]);
+        var musicalTastes = categoriesHelper.GetMusicalTastes(categories[3]);
+        
+        
+        
+        foreach (var dayTime in dayTimes)
+        {
+            homeViewModel.DayTimesDictionary.Add(dayTime, dayTime.Equals(categories.ElementAt(0), StringComparison.OrdinalIgnoreCase));
+        }
+        
+        foreach (var mood in moods)
+        {
+            homeViewModel.MoodsDictionary.Add(mood, mood.Equals(categories.ElementAt(1), StringComparison.OrdinalIgnoreCase));
+        }
+        
+        foreach (var relationship in relationships)
+        {
+            homeViewModel.RelationshipsDictionary.Add(relationship, relationship.Equals(categories.ElementAt(2), StringComparison.OrdinalIgnoreCase));
+        }
+        
+        foreach (var musicalTaste in musicalTastes)
+        {
+            homeViewModel.MusicalTastesDictionary.Add(musicalTaste, musicalTaste.Equals(categories.ElementAt(3), StringComparison.OrdinalIgnoreCase));
+        }
+
+        
+        return View("Index", homeViewModel);
     }
 
     private static string ExtractJson(string? input)
@@ -60,7 +98,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
         ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
 
         var formattedRequest =
-            $" return me a json object with a list of 30 song names related to these categories: \\\"{completions}\\\".  json must have this structure {{\"tracks\": [{{\"title\" : \"value\"}}]}}";
+            $" return me a json object with a list of 30 song names with its artist related to these categories: \\\"{completions}\\\".  json must have this structure {{\"tracks\": [{{\"title\" : \"value\"}}]}}";
 
         ChatCompletion result = client.CompleteChat(formattedRequest);
 
@@ -75,18 +113,18 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     }
 
     [HttpGet]
-    public async Task<JsonResult> CreatePlaylist(string completions)
+    public async Task<JsonResult> CreatePlaylist(string completions, string userInput)
     {
         await HttpContext.Session.LoadAsync();
         var spotifyClient = new SpotifyClient("");
         var accessToken = HttpContext.Session.GetString("access_token");
         var errorResult = new JsonResult("error");
-        var successResult = new JsonResult("Success");
-
+        var successResult = new JsonResult("success");
+        TempData.Clear();
+        
         if (string.IsNullOrEmpty(accessToken)) //if there is no access_token user need to log in
         {
-            TempData["error"] = "Please log in";
-            return errorResult;
+            return new JsonResult(new { status = "error", message = "Please log in" });
         }
 
         var refreshToken = HttpContext.Session.GetString("refresh_token");
@@ -108,7 +146,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
         {
             var user = await spotifyClient.UserProfile.Current();
             var playlist =
-                await spotifyClient.Playlists.Create(user.Id, new PlaylistCreateRequest("Moodify - playlist"));
+                await spotifyClient.Playlists.Create(user.Id, new PlaylistCreateRequest(userInput));
 
             var tracksName = GetTracksName(completions);
             var playlistItemModel = new PlaylistAddItemsRequest(new List<string>());
@@ -170,6 +208,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
 
     public async Task<RedirectToActionResult> Callback(string code)
     {
+        TempData.Clear();
         var verifier = HttpContext.Session.GetString("verifier");
 
         if (string.IsNullOrEmpty(verifier)) //no verifier error handling

@@ -1,3 +1,5 @@
+using Moodify.Helpers;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -13,6 +15,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddSingleton<CategoriesHelper>();
 
 var app = builder.Build();
 

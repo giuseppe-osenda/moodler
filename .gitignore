@@ -482,6 +482,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-Moodify/appsettings.Development.json
-Moodify/appsettings.Local.json
-Moodify/appsettings.json
+appsettings.Development.json
+appsettings.Local.json
+appsettings.json

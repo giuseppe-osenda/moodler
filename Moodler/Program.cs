@@ -1,4 +1,4 @@
-using Moodify.Helpers;
+using Moodler.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 

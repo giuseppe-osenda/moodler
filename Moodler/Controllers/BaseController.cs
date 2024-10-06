@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SpotifyAPI.Web;
 
-namespace Moodify.Controllers;
+namespace Moodler.Controllers;
 
 public class BaseController : Controller
 {

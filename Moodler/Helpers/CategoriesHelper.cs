@@ -1,4 +1,4 @@
-﻿namespace Moodify.Helpers;
+﻿namespace Moodler.Helpers;
 
 public class CategoriesHelper
 {

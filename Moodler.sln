@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moodify", "Moodify\Moodify.csproj", "{7759DDC8-1A4F-4716-9625-64BE2CEFEB1B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moodler", "Moodler\Moodler.csproj", "{7759DDC8-1A4F-4716-9625-64BE2CEFEB1B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

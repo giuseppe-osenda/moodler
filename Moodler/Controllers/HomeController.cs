@@ -3,12 +3,12 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
-using Moodify.Helpers;
-using Moodify.Models;
+using Moodler.Helpers;
+using Moodler.Models;
 using OpenAI.Chat;
 using SpotifyAPI.Web;
 
-namespace Moodify.Controllers;
+namespace Moodler.Controllers;
 
 public class HomeController(ILogger<HomeController> logger, IConfiguration configuration, CategoriesHelper categoriesHelper) : BaseController
 {

@@ -1,4 +1,4 @@
-namespace Moodify.Models;
+namespace Moodler.Models;
 
 public class ErrorViewModel
 {

@@ -1,0 +1,98 @@
+﻿@model HomeViewModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Home Page";
+    var completion = ViewBag.Completion;
+    var hasError = TempData.TryGetValue("error", out var errorMessage);
+}
+
+<form asp-action="GetCategories" id="getCategoriesForm">
+    <div class="form-group row">
+        <label for="get-categories-input" class="col-sm-2 col-form-label">Insert a phrase which describe the situation, emotion and context which corresponds to the music you would like to play</label>
+        <div class="col-sm-10">
+            <input type="text" name="request" class="form-control" id="get-categories-input" placeholder="e.g sunset with my girlfriend">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-outline-dark" id="submit-get-categories-form">Dark</button>
+</form>
+
+@if (hasError)
+{
+    <p class="text-danger">@errorMessage</p>
+}
+
+@if (completion != null)
+{
+    if (hasError)
+    {
+        <p class="text-danger">@errorMessage</p>
+    }
+    else
+    {
+        <select>
+            @foreach (var dayTime in Model.DayTimesDictionary)
+            {
+                <option selected="@dayTime.Value">@dayTime.Key</option>
+            }
+        </select>
+        
+        <select>
+            @foreach (var mood in Model.MoodsDictionary)
+            {
+                <option selected="@mood.Value">@mood.Key</option>
+            }
+        </select>
+        
+        <select>
+            @foreach (var relationship in Model.RelationshipsDictionary)
+            {
+                <option selected="@relationship.Value">@relationship.Key</option>
+            }
+        </select>
+        
+        <select>
+            @foreach (var musicalTaste in Model.MusicalTastesDictionary)
+            {
+                <option selected="@musicalTaste.Value">@musicalTaste.Key</option>
+            }
+        </select>
+
+        <a id="createPlaylistButton" class="btn btn-outline-primary">Create Playlist</a>
+    }
+}
+
+
+@section Scripts{
+    <script>
+    $(document).ready(function() {
+        
+        $('#getCategoriesForm').on("submit",function (e){
+            e.preventDefault();
+            let userInput = $('#get-categories-input').val();
+            sessionStorage.setItem("userInput", userInput);
+            this.submit();
+        })
+        
+        $('#createPlaylistButton').click(function() {
+            let completions = '@completion';
+            let userInput = sessionStorage.getItem("userInput");
+            $.get({
+                url: '@Url.Action("CreatePlaylist", "Home")',
+                data: { completions: completions, userInput : userInput },
+                traditional: true,
+                success: function(response) {
+                    if (response.status === "success") {
+                        console.log("Playlist created successfully!");
+                    }else{
+                        console.log("Error creating playlist: " + response.message);
+                    }
+                },
+                error: function(response) {
+                    console.log("Error creating playlist: " + response);
+                }
+            });
+        });
+    });
+
+    </script>
+}

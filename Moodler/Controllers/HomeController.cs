@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
@@ -13,9 +15,25 @@ namespace Moodler.Controllers;
 public class HomeController(ILogger<HomeController> logger, IConfiguration configuration, CategoriesHelper categoriesHelper) : BaseController
 {
     private readonly string _chatGptApiKey = configuration.GetSection("Api:SecretKey").Value ?? "";
+    
+    public static string Encrypt(string clearText)
+    {
+        byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
+        byte[] encryptedBytes = ProtectedData.Protect(clearBytes, null, DataProtectionScope.CurrentUser);
+        return Convert.ToBase64String(encryptedBytes);
+    }
+
+    public static string Decrypt(string cipherText)
+    {
+        byte[] cipherBytes = Convert.FromBase64String(cipherText);
+        byte[] decryptedBytes = ProtectedData.Unprotect(cipherBytes, null, DataProtectionScope.CurrentUser);
+        return Encoding.UTF8.GetString(decryptedBytes);
+    }
 
     public IActionResult Index()
     {
+        var cryptedKey = Encrypt("");
+        var key = Decrypt(cryptedKey);
         return View();
     }
 

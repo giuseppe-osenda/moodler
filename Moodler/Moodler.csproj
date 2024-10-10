@@ -19,6 +19,7 @@
       <PackageReference Include="OpenAI" Version="2.0.0-beta.12" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
       <PackageReference Include="SpotifyAPI.Web" Version="7.1.1" />
+      <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     </ItemGroup>
 
 </Project>

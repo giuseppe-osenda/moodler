@@ -16,6 +16,13 @@
     <button type="submit" class="btn btn-outline-dark" id="submit-get-categories-form">Dark</button>
 </form>
 
+<form asp-action="Encrypt">
+    <label for="cryptKey">Insert key</label>
+    <input type="text" id="cryptKey" name="clearText"/>
+    <button type="submit">submit key</button>
+</form>
+<p>@ViewBag.Key</p>
+
 @if (hasError)
 {
     <p class="text-danger">@errorMessage</p>

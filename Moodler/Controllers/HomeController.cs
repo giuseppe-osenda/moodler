@@ -14,28 +14,32 @@ namespace Moodler.Controllers;
 
 public class HomeController(ILogger<HomeController> logger, IConfiguration configuration, CategoriesHelper categoriesHelper) : BaseController
 {
-    private readonly string _chatGptApiKey = configuration.GetSection("Api:SecretKey").Value ?? "";
+    private readonly string _chatGptApiKey = Decrypt(configuration.GetSection("Api:OpenAiKey").Value ?? "");
     
-    public static string Encrypt(string clearText)
+    // Create byte array for additional entropy when using Protect method.
+    static byte [] s_additionalEntropy = { 9, 8, 7, 6, 5 };
+    
+    [HttpPost]
+    public IActionResult Encrypt(string clearText)
     {
         byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
-        byte[] encryptedBytes = ProtectedData.Protect(clearBytes, null, DataProtectionScope.CurrentUser);
-        return Convert.ToBase64String(encryptedBytes);
+        byte[] encryptedBytes = ProtectedData.Protect(clearBytes, s_additionalEntropy, DataProtectionScope.LocalMachine);
+        ViewBag.Key = Convert.ToBase64String(encryptedBytes);
+        return View("Index");
     }
 
     public static string Decrypt(string cipherText)
     {
         byte[] cipherBytes = Convert.FromBase64String(cipherText);
-        byte[] decryptedBytes = ProtectedData.Unprotect(cipherBytes, null, DataProtectionScope.CurrentUser);
+        byte[] decryptedBytes = ProtectedData.Unprotect(cipherBytes, s_additionalEntropy, DataProtectionScope.LocalMachine);
         return Encoding.UTF8.GetString(decryptedBytes);
     }
 
     public IActionResult Index()
     {
-        var cryptedKey = Encrypt("");
-        var key = Decrypt(cryptedKey);
         return View();
     }
+
 
     [HttpPost]
     public IActionResult GetCategories(string request)
@@ -131,7 +135,7 @@ public class HomeController(ILogger<HomeController> logger, IConfiguration confi
     }
 
     [HttpGet]
-    public async Task<JsonResult> CreatePlaylist(string completions, string userInput)
+    public async Task<IActionResult> CreatePlaylist(string completions, string userInput)
     {
         await HttpContext.Session.LoadAsync();
         var spotifyClient = new SpotifyClient("");

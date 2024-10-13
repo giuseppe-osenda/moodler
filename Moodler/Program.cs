@@ -1,4 +1,7 @@
+using System.ClientModel;
+using System.Net;
 using Moodler.Helpers;
+using OpenAI.Chat;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +19,14 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddSingleton<CategoriesHelper>();
+
+builder.Services.AddHttpClient<HttpClient>()
+    .ConfigureHttpClient((provider, httpClient) => { })
+    .ConfigurePrimaryHttpMessageHandler((handler) => new HttpClientHandler
+    {
+        UseDefaultCredentials = true,
+        Proxy = new WebProxy("http://winproxy.server.lan:3128", true)
+    });
 
 var app = builder.Build();
 

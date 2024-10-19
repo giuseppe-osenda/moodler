@@ -131,12 +131,7 @@ public class HomeController(
     private List<string> GetTracksName(string[] completions)
     {
         var client = openAiService.GetChatClient();
-
-        /*var formattedRequest =
-            $" return me a json object with a list of 30 song names with its artist related to these categories: " +
-            $"\\\"{completions}\\\".  " +
-            $"json must have this structure {{\"tracks\": [{{\"title\" : \"value\", \"artist\" : \"value\"}}]}}";*/
-
+        
         var formattedRequest =
             $"Restituiscimi un oggetto JSON contenente una lista di 20 brani con i rispettivi artisti. Ogni brano deve soddisfare necessariamente i seguenti criteri:\n\n- Il brano deve essere adatto al momento della giornata specificato in \"{completions[0]}\".\n- Il brano deve corrispondere all'umore descritto in \"{completions[1]}\".\n- Il brano deve riflettere la relazione specificata in \"{completions[2]}\".\n- Il brano deve appartenere alla categoria musicale \"{completions[3]}\".\n\nIl JSON deve avere la seguente struttura:\n{{\n  \"tracks\": [\n    {{\n      \"title\": \"nome brano\",\n      \"artist\": \"nome artista\"\n    }}\n  ]\n}}\n";
         
@@ -269,9 +264,11 @@ public class HomeController(
 
         try
         {
-            var httpClient = proxyHelper.ConfigureSpotifyProxyWithoutToken();
-            var oAuthClient = env.IsDevelopment() ? new OAuthClient() : new OAuthClient(httpClient);
+            /*var httpClient = proxyHelper.ConfigureSpotifyProxyWithoutToken();
+            var oAuthClient = env.IsDevelopment() ? new OAuthClient() : new OAuthClient(httpClient);*/
 
+            var oAuthClient = new OAuthClient();
+            
             // Note that we use the verifier calculated above!
             var initialResponse = await oAuthClient.RequestToken(
                 new PKCETokenRequest("f4cd70cc16604aaf99eae2801a16a949", code,

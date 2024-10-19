@@ -20,10 +20,11 @@ public class OpenAiService(EncryptHelper encryptHelper, IWebHostEnvironment env,
     {
         var apiKeyCredential = new ApiKeyCredential(_chatGptApiKey);
 
-        return env.IsDevelopment()
+        return new ChatClient(model: "gpt-4o-mini", apiKeyCredential);
+        /*return env.IsDevelopment()
             ? new ChatClient(model: "gpt-4o-mini", apiKeyCredential)
-            : new ChatClient(model: "gpt-4o-mini", apiKeyCredential, SetProxyOptions());
-        
+            : new ChatClient(model: "gpt-4o-mini", apiKeyCredential, SetProxyOptions());*/
+
     }
 
     private OpenAIClientOptions SetProxyOptions()

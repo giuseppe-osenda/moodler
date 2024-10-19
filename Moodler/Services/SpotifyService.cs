@@ -10,10 +10,11 @@ public class SpotifyService(ProxyHelper proxyHelper, IWebHostEnvironment env) : 
 {
     public SpotifyClient GetClient(string token)
     {
-        var spotifyConfig = env.IsDevelopment()
+        /*var spotifyConfig = env.IsDevelopment()
             ? SpotifyClientConfig.CreateDefault().WithToken(token)
-            : proxyHelper.ConfigureSpotifyProxy(token);
+            : proxyHelper.ConfigureSpotifyProxy(token);*/
 
+        var spotifyConfig = SpotifyClientConfig.CreateDefault().WithToken(token);
         return new SpotifyClient(spotifyConfig);
     }
 }

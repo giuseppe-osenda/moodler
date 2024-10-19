@@ -1,4 +1,8 @@
+using System.ClientModel;
+using System.Net;
 using Moodler.Helpers;
+using Moodler.Services;
+using OpenAI.Chat;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +20,10 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddSingleton<CategoriesHelper>();
+builder.Services.AddSingleton<EncryptHelper>();
+builder.Services.AddSingleton<ProxyHelper>();
+builder.Services.AddSingleton<IOpenAiService, OpenAiService>();
+builder.Services.AddSingleton<ISpotifyService, SpotifyService>();
 
 var app = builder.Build();
 

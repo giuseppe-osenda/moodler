@@ -6,6 +6,16 @@
     var hasError = TempData.TryGetValue("error", out var errorMessage);
 }
 
+@if(ViewBag.Error != null)
+{
+    <p class="text-danger">@ViewBag.Error</p>
+}
+
+@*@if(ViewBag.Response != null)
+{
+<p class="text-danger">@ViewBag.Response</p>
+}*@
+
 <form asp-action="GetCategories" id="getCategoriesForm">
     <div class="form-group row">
         <label for="get-categories-input" class="col-sm-2 col-form-label">Insert a phrase which describe the situation, emotion and context which corresponds to the music you would like to play</label>
@@ -15,6 +25,16 @@
     </div>
     <button type="submit" class="btn btn-outline-dark" id="submit-get-categories-form">Dark</button>
 </form>
+
+
+<form asp-action="Encrypt">
+    <label for="cryptKey">Insert key</label>
+    <input type="text" id="cryptKey" name="clearText"/>
+    <button type="submit">submit key</button>
+</form>
+<p>@ViewBag.Key</p>
+
+
 
 @if (hasError)
 {
@@ -35,21 +55,21 @@
                 <option selected="@dayTime.Value">@dayTime.Key</option>
             }
         </select>
-        
+
         <select>
             @foreach (var mood in Model.MoodsDictionary)
             {
                 <option selected="@mood.Value">@mood.Key</option>
             }
         </select>
-        
+
         <select>
             @foreach (var relationship in Model.RelationshipsDictionary)
             {
                 <option selected="@relationship.Value">@relationship.Key</option>
             }
         </select>
-        
+
         <select>
             @foreach (var musicalTaste in Model.MusicalTastesDictionary)
             {
@@ -74,11 +94,18 @@
         })
         
         $('#createPlaylistButton').click(function() {
-            let completions = '@completion';
+    
             let userInput = sessionStorage.getItem("userInput");
+
+            // Collect selected values from all dropdowns
+            let selectedValues = [];
+            $('option:selected').each(function() {
+                selectedValues.push($(this).val());
+            });
+            console.log(selectedValues);
             $.get({
                 url: '@Url.Action("CreatePlaylist", "Home")',
-                data: { completions: completions, userInput : userInput },
+                data: { completions: selectedValues, userInput : userInput },
                 traditional: true,
                 success: function(response) {
                     if (response.status === "success") {

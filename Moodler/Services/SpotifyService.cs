@@ -1,11 +1,19 @@
-﻿using SpotifyAPI.Web;
+﻿using System.ClientModel.Primitives;
+using System.Net;
+using Moodler.Helpers;
+using OpenAI;
+using SpotifyAPI.Web;
 
 namespace Moodler.Services;
 
-public class SpotifyService : ISpotifyService
+public class SpotifyService(ProxyHelper proxyHelper, IWebHostEnvironment env) : ISpotifyService
 {
-    public SpotifyClient GetClient()
+    public SpotifyClient GetClient(string token)
     {
-        throw new NotImplementedException();
+        var spotifyConfig = env.IsDevelopment()
+            ? SpotifyClientConfig.CreateDefault().WithToken(token)
+            : proxyHelper.ConfigureSpotifyProxy(token);
+
+        return new SpotifyClient(spotifyConfig);
     }
 }

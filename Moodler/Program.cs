@@ -21,6 +21,7 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddSingleton<CategoriesHelper>();
 builder.Services.AddSingleton<EncryptHelper>();
+builder.Services.AddSingleton<ProxyHelper>();
 builder.Services.AddSingleton<IOpenAiService, OpenAiService>();
 builder.Services.AddSingleton<ISpotifyService, SpotifyService>();
 

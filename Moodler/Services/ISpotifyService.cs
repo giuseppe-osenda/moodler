@@ -4,5 +4,5 @@ namespace Moodler.Services;
 
 public interface ISpotifyService
 {
-    SpotifyClient GetClient();
+    SpotifyClient GetClient(string token);
 }

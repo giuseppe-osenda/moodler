@@ -21,8 +21,14 @@ namespace Moodler.Controllers;
 public class HomeController(
     ILogger<HomeController> logger,
     CategoriesHelper categoriesHelper,
-    IOpenAiService openAiService) : BaseController
+    IOpenAiService openAiService,
+    ISpotifyService spotifyService,
+    IConfiguration configuration,
+    IWebHostEnvironment env) : BaseController
 {
+    private readonly string _callbackUri = env.IsDevelopment()
+        ? configuration.GetSection("Configurations:UriLocalCallback").Value ?? ""
+        : configuration.GetSection("Configurations:UriCallBack").Value ?? "";
     
     public IActionResult Index()
     {
@@ -163,14 +169,12 @@ public class HomeController(
             var refreshedToken = await RefreshToken(refreshToken);
             HttpContext.Session.SetString("refresh_token", refreshedToken.RefreshToken);
             HttpContext.Session.SetString("access_token", refreshedToken.AccessToken);
-            HttpContext.Session.SetString("access_token_creation_date",
-                refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
-            spotifyClient = new SpotifyClient(refreshedToken.AccessToken);
+            HttpContext.Session.SetString("access_token_creation_date", refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
+            spotifyClient = spotifyService.GetClient(refreshedToken.AccessToken);
         }
         else
         {
-            var config = DefaultConfig.WithToken(accessToken);
-            spotifyClient = new SpotifyClient(config);
+            spotifyClient = spotifyService.GetClient(accessToken);
         }
 
         
@@ -218,7 +222,7 @@ public class HomeController(
         HttpContext.Session.SetString("verifier", verifier);
 
         var loginRequest = new LoginRequest(
-            new Uri("https://moodler.app/home/callback"),
+            new Uri(_callbackUri),
             "f4cd70cc16604aaf99eae2801a16a949",
             LoginRequest.ResponseType.Code
         )
@@ -255,7 +259,7 @@ public class HomeController(
             // Note that we use the verifier calculated above!
             var initialResponse = await new OAuthClient().RequestToken(
                 new PKCETokenRequest("f4cd70cc16604aaf99eae2801a16a949", code,
-                    new Uri("https://moodler.app/home/callback"), verifier)
+                    new Uri(_callbackUri), verifier)
             );
 
             HttpContext.Session.SetString("access_token", initialResponse.AccessToken);
@@ -273,17 +277,16 @@ public class HomeController(
 
     private void SetCreationDate(DateTime initialResponseCreatedAt)
     {
-        var createdAt = initialResponseCreatedAt.ToString(CultureInfo.InvariantCulture);
-        var createdAtUtc = DateTime.Parse(createdAt, null, DateTimeStyles.AdjustToUniversal);
+        /*var createdAt = initialResponseCreatedAt.ToUniversalTime().ToString(CultureInfo.InvariantCulture);
+        var createdAtUtc = DateTime.Parse(createdAt);*/
 
         // Ottieni il fuso orario locale
         var localTimeZone = TimeZoneInfo.Local;
 
         // Converte createdAt al fuso orario locale
-        DateTime createdAtLocal = TimeZoneInfo.ConvertTimeFromUtc(createdAtUtc, localTimeZone);
+        DateTime createdAtLocal = TimeZoneInfo.ConvertTimeFromUtc(initialResponseCreatedAt, localTimeZone);
 
-        HttpContext.Session.SetString("access_token_creation_date",
-            createdAtLocal.ToString(CultureInfo.InvariantCulture));
+        HttpContext.Session.SetString("access_token_creation_date", createdAtLocal.ToString(CultureInfo.CurrentCulture));
     }
 
     private bool IsTokenExpired()

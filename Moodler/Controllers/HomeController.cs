@@ -3,6 +3,7 @@ using System.ClientModel.Primitives;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -24,12 +25,13 @@ public class HomeController(
     IOpenAiService openAiService,
     ISpotifyService spotifyService,
     IConfiguration configuration,
-    IWebHostEnvironment env) : BaseController
+    IWebHostEnvironment env,
+    ProxyHelper proxyHelper) : BaseController
 {
     private readonly string _callbackUri = env.IsDevelopment()
         ? configuration.GetSection("Configurations:UriLocalCallback").Value ?? ""
         : configuration.GetSection("Configurations:UriCallBack").Value ?? "";
-    
+
     public IActionResult Index()
     {
         return View();
@@ -45,7 +47,8 @@ public class HomeController(
             var client = openAiService.GetChatClient();
             
             var formattedRequest =
-                $"Give me in english one time of the day, one mood, one relationship and one musical taste which are related to : \\\"{request}\\\" separated by comma";
+                $"Provide me in English one time of day, one mood, one relationship, and one specific musical genre (not a feeling or mood like 'nostalgic') that are related to the following situation: \"{request}\". Separate each item with a comma.\n";
+            
 
             ChatCompletion chatCompletion = client.CompleteChat(formattedRequest);
             var completion = chatCompletion.Content[0].Text;
@@ -117,18 +120,26 @@ public class HomeController(
 
         foreach (var track in tracks)
         {
-            trackNames.Add(track.GetProperty("title").GetString() ?? string.Empty);
+            var title = track.GetProperty("title").GetString() ?? string.Empty;
+            var artist = track.GetProperty("artist").GetString() ?? string.Empty;
+            trackNames.Add($"{title} - {artist}");
         }
 
         return trackNames;
     }
 
-    private List<string> GetTracksName(string completions)
+    private List<string> GetTracksName(string[] completions)
     {
         var client = openAiService.GetChatClient();
 
+        /*var formattedRequest =
+            $" return me a json object with a list of 30 song names with its artist related to these categories: " +
+            $"\\\"{completions}\\\".  " +
+            $"json must have this structure {{\"tracks\": [{{\"title\" : \"value\", \"artist\" : \"value\"}}]}}";*/
+
         var formattedRequest =
-            $" return me a json object with a list of 30 song names with its artist related to these categories: \\\"{completions}\\\".  json must have this structure {{\"tracks\": [{{\"title\" : \"value\"}}]}}";
+            $"Restituiscimi un oggetto JSON contenente una lista di 20 brani con i rispettivi artisti. Ogni brano deve soddisfare necessariamente i seguenti criteri:\n\n- Il brano deve essere adatto al momento della giornata specificato in \"{completions[0]}\".\n- Il brano deve corrispondere all'umore descritto in \"{completions[1]}\".\n- Il brano deve riflettere la relazione specificata in \"{completions[2]}\".\n- Il brano deve appartenere alla categoria musicale \"{completions[3]}\".\n\nIl JSON deve avere la seguente struttura:\n{{\n  \"tracks\": [\n    {{\n      \"title\": \"nome brano\",\n      \"artist\": \"nome artista\"\n    }}\n  ]\n}}\n";
+        
 
         ChatCompletion result = client.CompleteChat(formattedRequest);
 
@@ -143,13 +154,11 @@ public class HomeController(
     }
 
     [HttpGet]
-    public async Task<IActionResult> CreatePlaylist(string completions, string userInput)
+    public async Task<IActionResult> CreatePlaylist(string[] completions, string userInput)
     {
         await HttpContext.Session.LoadAsync();
         SpotifyClient spotifyClient;
         var accessToken = HttpContext.Session.GetString("access_token");
-        var errorResult = new JsonResult("error");
-        var successResult = new JsonResult("success");
         TempData.Clear();
 
         if (string.IsNullOrEmpty(accessToken)) //if there is no access_token user need to log in
@@ -161,15 +170,16 @@ public class HomeController(
 
         if (IsTokenExpired()) //refresh token if expire
         {
-            if(string.IsNullOrEmpty(refreshToken))
+            if (string.IsNullOrEmpty(refreshToken))
             {
                 return new JsonResult(new { status = "error", message = "You need to log in to Spotify to continue" });
             }
-            
+
             var refreshedToken = await RefreshToken(refreshToken);
             HttpContext.Session.SetString("refresh_token", refreshedToken.RefreshToken);
             HttpContext.Session.SetString("access_token", refreshedToken.AccessToken);
-            HttpContext.Session.SetString("access_token_creation_date", refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
+            HttpContext.Session.SetString("access_token_creation_date",
+                refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
             spotifyClient = spotifyService.GetClient(refreshedToken.AccessToken);
         }
         else
@@ -177,15 +187,14 @@ public class HomeController(
             spotifyClient = spotifyService.GetClient(accessToken);
         }
 
-        
+
         try
         {
             var user = await spotifyClient.UserProfile.Current();
-            var playlist =
-                await spotifyClient.Playlists.Create(user.Id, new PlaylistCreateRequest(userInput));
+            var playlist = await spotifyClient.Playlists.Create(user.Id, new PlaylistCreateRequest(userInput));
 
             var tracksName = GetTracksName(completions);
-            var playlistItemModel = new PlaylistAddItemsRequest(new List<string>());
+            var trackUris = new List<string>();
 
             foreach (var trackName in tracksName)
             {
@@ -194,25 +203,29 @@ public class HomeController(
                 var trackId = searchResponse.Tracks.Items?.FirstOrDefault()?.Id;
 
                 if (trackId == null) continue;
+                
                 var trackUri = $"spotify:track:{trackId}";
-                playlistItemModel.Uris.Add(trackUri);
+                trackUris.Add(trackUri);
             }
 
-
-            if (playlistItemModel.Uris.Count == 0) return errorResult;
-
-            await spotifyClient.Playlists.AddItems(playlist.Id, playlistItemModel);
-
-
-            return successResult;
+            if (trackUris.Count > 0)
+            {
+                var playlistItemModel = new PlaylistAddItemsRequest(trackUris);
+                var resp = await spotifyClient.Playlists.AddItems(playlist.Id, playlistItemModel);
+            }
+            else
+            {
+                return new JsonResult(new { status = "error", message = "No songs added to the playlist" });
+            }
         }
         catch (Exception e)
         {
             TempData["error"] = "An error occured please try again";
+            return new JsonResult(new { status = "error", message = e.Message });
         }
 
 
-        return errorResult;
+        return new JsonResult(new { status = "success", message = "Playlist created successfully!" });
     }
 
     public RedirectResult Login()
@@ -256,8 +269,11 @@ public class HomeController(
 
         try
         {
+            var httpClient = proxyHelper.ConfigureSpotifyProxyWithoutToken();
+            var oAuthClient = env.IsDevelopment() ? new OAuthClient() : new OAuthClient(httpClient);
+
             // Note that we use the verifier calculated above!
-            var initialResponse = await new OAuthClient().RequestToken(
+            var initialResponse = await oAuthClient.RequestToken(
                 new PKCETokenRequest("f4cd70cc16604aaf99eae2801a16a949", code,
                     new Uri(_callbackUri), verifier)
             );
@@ -286,7 +302,8 @@ public class HomeController(
         // Converte createdAt al fuso orario locale
         DateTime createdAtLocal = TimeZoneInfo.ConvertTimeFromUtc(initialResponseCreatedAt, localTimeZone);
 
-        HttpContext.Session.SetString("access_token_creation_date", createdAtLocal.ToString(CultureInfo.CurrentCulture));
+        HttpContext.Session.SetString("access_token_creation_date",
+            createdAtLocal.ToString(CultureInfo.CurrentCulture));
     }
 
     private bool IsTokenExpired()

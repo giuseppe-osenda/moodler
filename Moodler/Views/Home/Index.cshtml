@@ -94,11 +94,18 @@
         })
         
         $('#createPlaylistButton').click(function() {
-            let completions = '@completion';
+    
             let userInput = sessionStorage.getItem("userInput");
+
+            // Collect selected values from all dropdowns
+            let selectedValues = [];
+            $('option:selected').each(function() {
+                selectedValues.push($(this).val());
+            });
+            console.log(selectedValues);
             $.get({
                 url: '@Url.Action("CreatePlaylist", "Home")',
-                data: { completions: completions, userInput : userInput },
+                data: { completions: selectedValues, userInput : userInput },
                 traditional: true,
                 success: function(response) {
                     if (response.status === "success") {

@@ -32,15 +32,28 @@ public class ProxyHelper (IConfiguration configuration)
 
     public SpotifyClientConfig ConfigureSpotifyProxy(string token)
     {
-        var httpClient = new NetHttpClient(new ProxyConfig("http://winproxy.server.lan", 3128)
+        var httpClient = new NetHttpClient(new ProxyConfig(_proxyAddress, 3128)
         {
-            SkipSSLCheck = true,
-            BypassProxyOnLocal = true
+            SkipSSLCheck = false,
+            BypassProxyOnLocal = false
         });
         
         return SpotifyClientConfig
             .CreateDefault()
             .WithToken(token)
+            .WithHTTPClient(httpClient);
+    }
+    
+    public SpotifyClientConfig ConfigureSpotifyProxyWithoutToken()
+    {
+        var httpClient = new NetHttpClient(new ProxyConfig(_proxyAddress, 3128)
+        {
+            SkipSSLCheck = false,
+            BypassProxyOnLocal = false
+        });
+        
+        return SpotifyClientConfig
+            .CreateDefault()
             .WithHTTPClient(httpClient);
     }
 }

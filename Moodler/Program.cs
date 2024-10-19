@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.Net;
 using Moodler.Helpers;
+using Moodler.Services;
 using OpenAI.Chat;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,14 +20,9 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddSingleton<CategoriesHelper>();
-
-builder.Services.AddHttpClient<HttpClient>()
-    .ConfigureHttpClient((provider, httpClient) => { })
-    .ConfigurePrimaryHttpMessageHandler((handler) => new HttpClientHandler
-    {
-        UseDefaultCredentials = true,
-        Proxy = new WebProxy("http://winproxy.server.lan:3128", true)
-    });
+builder.Services.AddSingleton<EncryptHelper>();
+builder.Services.AddSingleton<IOpenAiService, OpenAiService>();
+builder.Services.AddSingleton<ISpotifyService, SpotifyService>();
 
 var app = builder.Build();
 

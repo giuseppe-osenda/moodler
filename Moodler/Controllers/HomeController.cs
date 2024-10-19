@@ -8,8 +8,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting.Internal;
 using Moodler.Helpers;
 using Moodler.Models;
+using Moodler.Services;
 using OpenAI;
 using OpenAI.Chat;
 using SpotifyAPI.Web;
@@ -18,90 +20,24 @@ namespace Moodler.Controllers;
 
 public class HomeController(
     ILogger<HomeController> logger,
-    IConfiguration configuration,
-    CategoriesHelper categoriesHelper) : BaseController
+    CategoriesHelper categoriesHelper,
+    IOpenAiService openAiService) : BaseController
 {
-    //private readonly string _chatGptApiKey = Decrypt(configuration.GetSection("Api:OpenAiKeyLocal").Value ?? "");
-    private readonly string _chatGptApiKey = Decrypt(configuration.GetSection("Api:OpenAiKey").Value ?? "");
-    private static readonly string apiUrl = "https://api.openai.com/v1/chat/completions";
-    private static readonly string proxyAddress = "http://winproxy.server.lan:3128";  // Your proxy address
     
-    // Create byte array for additional entropy when using Protect method.
-    static byte[] s_additionalEntropy = { 9, 8, 7, 6, 5 };
-
-    [HttpPost]
-    public IActionResult Encrypt(string clearText)
-    {
-        byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
-        byte[] encryptedBytes =
-            ProtectedData.Protect(clearBytes, s_additionalEntropy, DataProtectionScope.LocalMachine);
-        ViewBag.Key = Convert.ToBase64String(encryptedBytes);
-        return View("Index");
-    }
-
-    public static string Decrypt(string cipherText)
-    {
-        try
-        {
-            byte[] cipherBytes = Convert.FromBase64String(cipherText);
-            byte[] decryptedBytes =
-                ProtectedData.Unprotect(cipherBytes, s_additionalEntropy, DataProtectionScope.LocalMachine);
-            return Encoding.UTF8.GetString(decryptedBytes);
-        }
-        catch (Exception e)
-        {
-            throw new ApplicationException("Failed to decrypt data", e);
-        }
-    }
-
-    /*
-    public async Task<IActionResult> Index()
-    {
-        var prompt = "Tell me a joke";
-        var response = await GetCompletionAsync(prompt, _chatGptApiKey, "http://winproxy.server.lan:3128");
-        ViewBag.Response = response;
-        return View();
-    }
-    */
-
     public IActionResult Index()
     {
         return View();
     }
-    
+
     [HttpPost]
     public IActionResult GetCategories(string request)
     {
         try
         {
             TempData.Clear();
-            
-            // Set up the proxy
-            var proxy = new WebProxy(proxyAddress, false)
-            {
-                UseDefaultCredentials = true  // If the proxy requires authentication with the current user's credentials
-            };
 
-            // Set up the HttpClientHandler with the proxy
-            var httpClientHandler = new HttpClientHandler
-            {
-                Proxy = proxy,
-                UseProxy = true
-            };
+            var client = openAiService.GetChatClient();
             
-            var httpClient = new HttpClient(httpClientHandler);
-            
-            OpenAIClientOptions options = new()
-            {
-                Transport = new HttpClientPipelineTransport(httpClient),
-            };
-
-            var apiKeyCredential = new ApiKeyCredential(_chatGptApiKey);
-            
-            
-            ChatClient client = new(model: "gpt-4o-mini", apiKeyCredential, options);
-
-
             var formattedRequest =
                 $"Give me in english one time of the day, one mood, one relationship and one musical taste which are related to : \\\"{request}\\\" separated by comma";
 
@@ -109,7 +45,7 @@ public class HomeController(
             var completion = chatCompletion.Content[0].Text;
             ViewBag.Completion = completion;
 
-        
+
             if (string.IsNullOrEmpty(completion))
             {
                 TempData["error"] = "An error occured while trying to retrieve your categories, please try again";
@@ -183,7 +119,7 @@ public class HomeController(
 
     private List<string> GetTracksName(string completions)
     {
-        ChatClient client = new(model: "gpt-4o-mini", _chatGptApiKey);
+        var client = openAiService.GetChatClient();
 
         var formattedRequest =
             $" return me a json object with a list of 30 song names with its artist related to these categories: \\\"{completions}\\\".  json must have this structure {{\"tracks\": [{{\"title\" : \"value\"}}]}}";
@@ -204,7 +140,7 @@ public class HomeController(
     public async Task<IActionResult> CreatePlaylist(string completions, string userInput)
     {
         await HttpContext.Session.LoadAsync();
-        var spotifyClient = new SpotifyClient("");
+        SpotifyClient spotifyClient;
         var accessToken = HttpContext.Session.GetString("access_token");
         var errorResult = new JsonResult("error");
         var successResult = new JsonResult("success");
@@ -217,8 +153,13 @@ public class HomeController(
 
         var refreshToken = HttpContext.Session.GetString("refresh_token");
 
-        if (IsTokenExpired() && !string.IsNullOrEmpty(refreshToken)) //refresh token if expire
+        if (IsTokenExpired()) //refresh token if expire
         {
+            if(string.IsNullOrEmpty(refreshToken))
+            {
+                return new JsonResult(new { status = "error", message = "You need to log in to Spotify to continue" });
+            }
+            
             var refreshedToken = await RefreshToken(refreshToken);
             HttpContext.Session.SetString("refresh_token", refreshedToken.RefreshToken);
             HttpContext.Session.SetString("access_token", refreshedToken.AccessToken);
@@ -226,10 +167,13 @@ public class HomeController(
                 refreshedToken.CreatedAt.ToString(CultureInfo.CurrentCulture));
             spotifyClient = new SpotifyClient(refreshedToken.AccessToken);
         }
+        else
+        {
+            var config = DefaultConfig.WithToken(accessToken);
+            spotifyClient = new SpotifyClient(config);
+        }
 
-        var config = DefaultConfig.WithToken(accessToken);
-        spotifyClient = new SpotifyClient(config);
-
+        
         try
         {
             var user = await spotifyClient.UserProfile.Current();
@@ -373,51 +317,5 @@ public class HomeController(
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-    }
-
-    public static async Task<string> GetCompletionAsync(string prompt, string chatGptApiKey, string proxyAddress)
-    {
-        // Set up the proxy
-        var proxy = new WebProxy(proxyAddress, false)
-        {
-            UseDefaultCredentials = true  // If the proxy requires authentication with the current user's credentials
-        };
-
-        // Set up the HttpClientHandler with the proxy
-        var httpClientHandler = new HttpClientHandler
-        {
-            Proxy = proxy,
-            UseProxy = true
-        };
-        
-        using var client = new HttpClient(httpClientHandler);
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {chatGptApiKey}");
-        // Define the request body for the chat model
-        var requestBody = new
-        {
-            model = "gpt-4o-mini",  // Change to "gpt-4" or "gpt-3.5-turbo" if needed
-            messages = new[]
-            {
-                new { role = "system", content = "You are a helpful assistant." },
-                new { role = "user", content = prompt }
-            }
-        };
-
-        // Convert the request body to JSON format
-        var jsonContent = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
-
-        // Make the POST request to the OpenAI API
-        var response = await client.PostAsync(apiUrl, jsonContent);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var result = await response.Content.ReadAsStringAsync();
-            return result;  // This will return the raw JSON response from the API
-        }
-        else
-        {
-            var errorMessage = await response.Content.ReadAsStringAsync();  // Get error message from the response content
-            return $"Error: {response.StatusCode} - {response.ReasonPhrase}: {errorMessage}";
-        }
     }
 }

@@ -1,4 +1,4 @@
-﻿@model HomeViewModel
+﻿@*@model HomeViewModel
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Home Page";
@@ -10,11 +10,6 @@
 {
     <p class="text-danger">@ViewBag.Error</p>
 }
-
-@*@if(ViewBag.Response != null)
-{
-<p class="text-danger">@ViewBag.Response</p>
-}*@
 
 <form asp-action="GetCategories" id="getCategoriesForm">
     <div class="form-group row">
@@ -122,4 +117,6 @@
     });
 
     </script>
-}
+}*@
+
+<h1>Solved</h1>

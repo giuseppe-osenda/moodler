@@ -28,14 +28,15 @@ public class HomeController(
     IWebHostEnvironment env,
     ProxyHelper proxyHelper) : BaseController
 {
-    private readonly string _callbackUri = env.IsDevelopment()
-        ? configuration.GetSection("Configurations:UriLocalCallback").Value ?? ""
-        : configuration.GetSection("Configurations:UriCallBack").Value ?? "";
+    private readonly string _callbackUri = configuration.GetSection("Configurations:UriCallBack").Value ?? "";
+        
 
     public IActionResult Index()
     {
         return View();
     }
+    
+  
 
     [HttpPost]
     public IActionResult GetCategories(string request)

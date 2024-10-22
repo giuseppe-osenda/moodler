@@ -5,7 +5,7 @@
     var completion = ViewBag.Completion;
     var hasError = TempData.TryGetValue("error", out var errorMessage);
 }
-
+<h1>@ViewData["Message"]</h1>
 @if(ViewBag.Error != null)
 {
     <p class="text-danger">@ViewBag.Error</p>
@@ -20,15 +20,6 @@
     </div>
     <button type="submit" class="btn btn-outline-dark" id="submit-get-categories-form">Dark</button>
 </form>
-
-
-<form asp-action="Encrypt">
-    <label for="cryptKey">Insert key</label>
-    <input type="text" id="cryptKey" name="clearText"/>
-    <button type="submit">submit key</button>
-</form>
-<p>@ViewBag.Key</p>
-
 
 
 @if (hasError)

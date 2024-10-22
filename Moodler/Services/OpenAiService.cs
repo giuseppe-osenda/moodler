@@ -9,22 +9,15 @@ namespace Moodler.Services;
 
 public class OpenAiService(EncryptHelper encryptHelper, IWebHostEnvironment env, IConfiguration configuration, ProxyHelper proxyHelper) : IOpenAiService
 {
-    private readonly string _chatGptApiKey =
-        env.IsDevelopment()
-            ? encryptHelper.Decrypt(configuration.GetSection("Api:OpenAiKeyLocal").Value ?? "")
-            : encryptHelper.Decrypt(configuration.GetSection("Api:OpenAiKey").Value ?? "");
+    private readonly string _chatGptApiKey = configuration["OpenAi"] ?? "";
 
-   
+        
     
     public ChatClient GetChatClient()
     {
         var apiKeyCredential = new ApiKeyCredential(_chatGptApiKey);
 
         return new ChatClient(model: "gpt-4o-mini", apiKeyCredential);
-        /*return env.IsDevelopment()
-            ? new ChatClient(model: "gpt-4o-mini", apiKeyCredential)
-            : new ChatClient(model: "gpt-4o-mini", apiKeyCredential, SetProxyOptions());*/
-
     }
 
     private OpenAIClientOptions SetProxyOptions()

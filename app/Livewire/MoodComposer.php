@@ -5,10 +5,14 @@ namespace App\Livewire;
 use App\Data\MoodProfile;
 use App\Data\Track;
 use App\Data\Tuning;
+use App\Http\Middleware\SetLocale;
 use App\Services\MoodInterpreter;
 use App\Services\PlaylistComposer;
 use App\Support\MoodCategories;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Lang;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
@@ -27,6 +31,10 @@ class MoodComposer extends Component
     private const LIST_SIZE = 15;
 
     private const MAX_HEARD_SONGS = 45;
+
+    private const PHRASE_RULES = ['required', 'string', 'min:3', 'max:280'];
+
+    private const LOCALE_COOKIE_MINUTES = 60 * 24 * 365;
 
     public int $step = self::STEP_PHRASE;
 
@@ -57,22 +65,46 @@ class MoodComposer extends Component
     #[Locked]
     public ?string $composedSignature = null;
 
+    /** @var 'interpret'|'compose'|'no_tracks'|null */
     #[Locked]
-    public ?string $errorMessage = null;
+    public ?string $errorKey = null;
+
+    public string $locale = '';
+
+    public function mount(): void
+    {
+        $this->locale = App::getLocale();
+    }
+
+    /**
+     * Switch the interface language and remember the choice in a cookie.
+     */
+    public function updatedLocale(string $locale): void
+    {
+        if (! SetLocale::isSupported($locale)) {
+            $this->locale = App::getLocale();
+
+            return;
+        }
+
+        Cookie::queue(SetLocale::COOKIE, $locale, self::LOCALE_COOKIE_MINUTES);
+        App::setLocale($locale);
+        $this->dispatch('locale-changed', locale: $locale);
+    }
 
     /**
      * Read the phrase and propose an atmosphere for it.
      */
     public function interpret(MoodInterpreter $interpreter): void
     {
-        $this->validate(['phrase' => ['required', 'string', 'min:3', 'max:280']]);
-        $this->errorMessage = null;
+        $this->validate(['phrase' => self::PHRASE_RULES], $this->phraseMessages());
+        $this->errorKey = null;
 
         try {
             $profile = $interpreter->interpret($this->phrase);
         } catch (RuntimeException $exception) {
             report($exception);
-            $this->errorMessage = 'We could not read your mood right now. Please try again in a moment.';
+            $this->errorKey = 'interpret';
 
             return;
         }
@@ -90,7 +122,7 @@ class MoodComposer extends Component
     public function compose(PlaylistComposer $composer): void
     {
         $this->validate([
-            'phrase' => ['required', 'string', 'min:3', 'max:280'],
+            'phrase' => self::PHRASE_RULES,
             'dayTime' => ['required', 'string', 'max:40'],
             'mood' => ['required', 'string', 'max:40'],
             'relationship' => ['required', 'string', 'max:40'],
@@ -98,20 +130,20 @@ class MoodComposer extends Component
             'energy' => ['required', 'integer', 'between:0,100'],
             'popularity' => ['required', 'integer', 'between:0,100'],
             'instrumentalness' => ['required', 'integer', 'between:0,100'],
-        ]);
-        $this->errorMessage = null;
+        ], $this->phraseMessages());
+        $this->errorKey = null;
 
         try {
             $tracks = $composer->compose($this->phrase, $this->profile(), $this->tuning(), self::LIST_SIZE, $this->heardSongs);
         } catch (RuntimeException $exception) {
             report($exception);
-            $this->errorMessage = 'Something went wrong while picking your songs. Please try again.';
+            $this->errorKey = 'compose';
 
             return;
         }
 
         if ($tracks === []) {
-            $this->errorMessage = 'No songs matched this mix. Try changing a few settings and remix.';
+            $this->errorKey = 'no_tracks';
 
             return;
         }
@@ -136,6 +168,7 @@ class MoodComposer extends Component
     public function restart(): void
     {
         $this->reset();
+        $this->locale = App::getLocale();
         $this->dispatch('tracks-cleared');
     }
 
@@ -163,35 +196,63 @@ class MoodComposer extends Component
     }
 
     /**
-     * @return array<string, array{label: string, options: list<string>}>
+     * Mood options per dimension. Values stay in English for the AI; labels follow the interface language.
+     *
+     * @return array<string, array{label: string, options: list<array{value: string, label: string}>}>
      */
-    #[Computed]
     public function atmosphereGroups(): array
     {
-        return [
-            'mood' => ['label' => 'Mood', 'options' => MoodCategories::withValue(MoodCategories::MOODS, $this->mood)],
-            'genre' => ['label' => 'Genre', 'options' => MoodCategories::withValue(MoodCategories::GENRES, $this->genre)],
-            'dayTime' => ['label' => 'Time of day', 'options' => MoodCategories::withValue(MoodCategories::DAY_TIMES, $this->dayTime)],
-            'relationship' => ['label' => 'Listening with', 'options' => MoodCategories::withValue(MoodCategories::RELATIONSHIPS, $this->relationship)],
+        $groups = [
+            'mood' => MoodCategories::withValue(MoodCategories::MOODS, $this->mood),
+            'genre' => MoodCategories::withValue(MoodCategories::GENRES, $this->genre),
+            'dayTime' => MoodCategories::withValue(MoodCategories::DAY_TIMES, $this->dayTime),
+            'relationship' => MoodCategories::withValue(MoodCategories::RELATIONSHIPS, $this->relationship),
         ];
+
+        return collect($groups)->map(fn (array $options, string $field): array => [
+            'label' => __("moodler.atmosphere.groups.{$field}"),
+            'options' => array_map(fn (string $option): array => ['value' => $option, 'label' => self::optionLabel($option)], $options),
+        ])->all();
     }
 
     /**
      * @return array<string, array{label: string, low: string, high: string}>
      */
-    #[Computed]
     public function tuningKnobs(): array
     {
-        return [
-            'energy' => ['label' => 'Energy', 'low' => 'Calm', 'high' => 'Intense'],
-            'popularity' => ['label' => 'Popularity', 'low' => 'Hidden gems', 'high' => 'Big hits'],
-            'instrumentalness' => ['label' => 'Vocals', 'low' => 'Sung', 'high' => 'Instrumental'],
-        ];
+        return __('moodler.tuning.knobs');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function supportedLocales(): array
+    {
+        return config('app.supported_locales');
+    }
+
+    public static function optionLabel(string $option): string
+    {
+        $key = "moodler.options.{$option}";
+
+        return Lang::has($key) ? __($key) : $option;
     }
 
     public function render(): View
     {
         return view('livewire.mood-composer');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function phraseMessages(): array
+    {
+        return [
+            'phrase.required' => __('moodler.validation.phrase_required'),
+            'phrase.min' => __('moodler.validation.phrase_min'),
+            'phrase.max' => __('moodler.validation.phrase_max'),
+        ];
     }
 
     private function profile(): MoodProfile

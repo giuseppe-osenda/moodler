@@ -56,7 +56,7 @@ class MoodComposerTest extends TestCase
 
     public function test_the_home_page_shows_the_first_step(): void
     {
-        $this->withoutVite()->get('/')->assertOk()->assertSeeLivewire(MoodComposer::class)->assertSee("What's the moment?", false);
+        $this->withoutVite()->get('/', ['Accept-Language' => ''])->assertOk()->assertSeeLivewire(MoodComposer::class)->assertSee(__('moodler.phrase.title'), false);
     }
 
     public function test_reading_a_phrase_fills_the_atmosphere_and_keeps_custom_labels_selectable(): void
@@ -71,7 +71,7 @@ class MoodComposerTest extends TestCase
             ->assertSet('mood', 'Wistful')
             ->assertSet('genre', 'Soft Rock')
             ->assertSee('Wistful')
-            ->assertSee('Melancholic');
+            ->assertSee(__('moodler.options.Melancholic'));
     }
 
     public function test_a_phrase_is_required(): void
@@ -104,9 +104,9 @@ class MoodComposerTest extends TestCase
             ->assertCount('tracks', 2)
             ->assertSet('tracks.0.uri', 'spotify:track:'.md5('Dreams'))
             ->assertDispatched('tracks-updated', uris: ['spotify:track:'.md5('Dreams'), 'spotify:track:'.md5('Harvest Moon')])
-            ->assertSee('Your list')
+            ->assertSee(__('moodler.player.your_list'))
             ->assertSee('Harvest Moon')
-            ->assertSee('Remix');
+            ->assertSee(__('moodler.actions.remix'));
 
         Http::assertSent(fn (Request $request): bool => ($request['text']['format']['name'] ?? null) === 'track_suggestions'
             && str_contains($request['input'], 'Energy: mellow and laid-back'));
@@ -123,7 +123,7 @@ class MoodComposerTest extends TestCase
             ->assertSet('hasPendingChanges', false)
             ->set('popularity', 90)
             ->assertSet('hasPendingChanges', true)
-            ->assertSee('remix to hear them')
+            ->assertSee(__('moodler.actions.pending'))
             ->call('compose')
             ->assertSet('hasPendingChanges', false);
 
@@ -142,7 +142,7 @@ class MoodComposerTest extends TestCase
             ->call('interpret')
             ->call('compose')
             ->assertSet('tracks', [])
-            ->assertSee('No songs matched this mix');
+            ->assertSee(__('moodler.errors.no_tracks'));
     }
 
     public function test_it_shows_a_friendly_error_when_a_service_fails(): void
@@ -153,7 +153,7 @@ class MoodComposerTest extends TestCase
             ->set('phrase', 'sunset with my girlfriend')
             ->call('interpret')
             ->assertSet('step', MoodComposer::STEP_PHRASE)
-            ->assertSee('We could not read your mood right now');
+            ->assertSee(__('moodler.errors.interpret'));
     }
 
     public function test_starting_over_clears_everything(): void
@@ -168,6 +168,6 @@ class MoodComposerTest extends TestCase
             ->assertSet('step', MoodComposer::STEP_PHRASE)
             ->assertSet('phrase', '')
             ->assertSet('tracks', [])
-            ->assertDontSee('Your list');
+            ->assertDontSee(__('moodler.player.your_list'));
     }
 }

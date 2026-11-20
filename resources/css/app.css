@@ -31,6 +31,10 @@
     }
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 .moodler-backdrop {
     background-color: var(--color-ink-950);
     background-image:

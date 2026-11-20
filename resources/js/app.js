@@ -19,6 +19,10 @@ function loadSpotifyIframeApi() {
     return spotifyApiPromise;
 }
 
+window.addEventListener('locale-changed', (event) => {
+    document.documentElement.lang = event.detail.locale;
+});
+
 document.addEventListener('alpine:init', () => {
     /**
      * One Spotify embed driven by our own track list: click a row to play it,

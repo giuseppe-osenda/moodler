@@ -78,9 +78,22 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'it'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+
+    /*
+    | Interface languages players can pick, keyed by locale code, with each
+    | language's own name for the selector.
+    */
+
+    'supported_locales' => [
+        'it' => 'Italiano',
+        'en' => 'English',
+        'es' => 'Español',
+        'fr' => 'Français',
+        'de' => 'Deutsch',
+    ],
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 

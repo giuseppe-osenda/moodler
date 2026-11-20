@@ -93,7 +93,7 @@ class MoodComposer extends Component
     }
 
     /**
-     * Read the phrase and propose an atmosphere for it.
+     * Read the phrase and propose an atmosphere and knob settings for it.
      */
     public function interpret(MoodInterpreter $interpreter): void
     {
@@ -101,7 +101,7 @@ class MoodComposer extends Component
         $this->errorKey = null;
 
         try {
-            $profile = $interpreter->interpret($this->phrase);
+            $interpretation = $interpreter->interpret($this->phrase);
         } catch (RuntimeException $exception) {
             report($exception);
             $this->errorKey = 'interpret';
@@ -109,10 +109,13 @@ class MoodComposer extends Component
             return;
         }
 
-        $this->dayTime = $profile->dayTime;
-        $this->mood = $profile->mood;
-        $this->relationship = $profile->relationship;
-        $this->genre = $profile->genre;
+        $this->dayTime = $interpretation->profile->dayTime;
+        $this->mood = $interpretation->profile->mood;
+        $this->relationship = $interpretation->profile->relationship;
+        $this->genre = $interpretation->profile->genre;
+        $this->energy = $interpretation->tuning->energy;
+        $this->popularity = $interpretation->tuning->popularity;
+        $this->instrumentalness = $interpretation->tuning->instrumentalness;
         $this->step = self::STEP_ATMOSPHERE;
     }
 

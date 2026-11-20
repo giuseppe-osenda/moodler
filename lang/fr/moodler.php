@@ -18,7 +18,7 @@ return [
         'submit' => 'Lire mon humeur',
         'submit_again' => 'Relire mon humeur',
         'submitting' => 'Lecture de votre humeur…',
-        'replace_note' => 'Relire remplacera l’ambiance que vous avez choisie.',
+        'replace_note' => 'Relire remplacera l’ambiance et les réglages que vous avez choisis.',
     ],
 
     'atmosphere' => [
@@ -35,7 +35,7 @@ return [
 
     'tuning' => [
         'title' => 'Affinez le mix',
-        'subtitle' => 'Réglez les curseurs, puis laissez moodler choisir les morceaux.',
+        'subtitle' => 'Nous les avons réglés sur votre moment : ajustez-les à votre guise, puis laissez moodler choisir les morceaux.',
         'knobs' => [
             'energy' => ['label' => 'Énergie', 'low' => 'Calme', 'high' => 'Intense'],
             'popularity' => ['label' => 'Popularité', 'low' => 'Pépites cachées', 'high' => 'Grands tubes'],

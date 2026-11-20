@@ -18,7 +18,7 @@ return [
         'submit' => 'Lies meine Stimmung',
         'submit_again' => 'Stimmung neu lesen',
         'submitting' => 'Deine Stimmung wird gelesen…',
-        'replace_note' => 'Beim erneuten Lesen wird die gewählte Stimmung ersetzt.',
+        'replace_note' => 'Beim erneuten Lesen werden die gewählte Stimmung und die Regler ersetzt.',
     ],
 
     'atmosphere' => [
@@ -35,7 +35,7 @@ return [
 
     'tuning' => [
         'title' => 'Feinschliff für den Mix',
-        'subtitle' => 'Verschiebe die Regler und lass moodler die Songs auswählen.',
+        'subtitle' => 'Wir haben sie auf deinen Moment eingestellt. Verschieb sie nach Belieben und lass moodler die Songs auswählen.',
         'knobs' => [
             'energy' => ['label' => 'Energie', 'low' => 'Ruhig', 'high' => 'Intensiv'],
             'popularity' => ['label' => 'Bekanntheit', 'low' => 'Geheimtipps', 'high' => 'Große Hits'],

@@ -31,8 +31,8 @@ class MoodComposerTest extends TestCase
     {
         Http::fake([
             'api.openai.com/v1/responses' => function (Request $request) use ($songs) {
-                $answer = $request['text']['format']['name'] === 'mood_profile'
-                    ? ['dayTime' => 'Dusk', 'mood' => 'Wistful', 'relationship' => 'Lovers', 'genre' => 'Soft Rock']
+                $answer = $request['text']['format']['name'] === 'mood_interpretation'
+                    ? ['dayTime' => 'Dusk', 'mood' => 'Wistful', 'relationship' => 'Lovers', 'genre' => 'Soft Rock', 'energy' => 23, 'popularity' => 140, 'instrumentalness' => 81]
                     : ['tracks' => $songs];
 
                 return Http::response(['status' => 'completed', 'output' => [
@@ -59,7 +59,7 @@ class MoodComposerTest extends TestCase
         $this->withoutVite()->get('/', ['Accept-Language' => ''])->assertOk()->assertSeeLivewire(MoodComposer::class)->assertSee(__('moodler.phrase.title'), false);
     }
 
-    public function test_reading_a_phrase_fills_the_atmosphere_and_keeps_custom_labels_selectable(): void
+    public function test_reading_a_phrase_fills_the_atmosphere_and_knobs_and_keeps_custom_labels_selectable(): void
     {
         $this->fakeApis();
 
@@ -70,6 +70,9 @@ class MoodComposerTest extends TestCase
             ->assertSet('step', MoodComposer::STEP_ATMOSPHERE)
             ->assertSet('mood', 'Wistful')
             ->assertSet('genre', 'Soft Rock')
+            ->assertSet('energy', 25)
+            ->assertSet('popularity', 100)
+            ->assertSet('instrumentalness', 80)
             ->assertSee('Wistful')
             ->assertSee(__('moodler.options.Melancholic'));
     }

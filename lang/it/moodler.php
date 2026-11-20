@@ -18,7 +18,7 @@ return [
         'submit' => 'Leggi il mio mood',
         'submit_again' => 'Rileggi il mio mood',
         'submitting' => 'Sto leggendo il tuo mood…',
-        'replace_note' => 'Rileggendolo, l’atmosfera che hai scelto verrà sostituita.',
+        'replace_note' => 'Rileggendolo, l’atmosfera e le sfumature che hai scelto verranno sostituite.',
     ],
 
     'atmosphere' => [
@@ -35,7 +35,7 @@ return [
 
     'tuning' => [
         'title' => 'Regola il mix',
-        'subtitle' => 'Muovi i cursori, poi lascia che moodler scelga i brani.',
+        'subtitle' => 'Li abbiamo regolati sul tuo momento: spostali come vuoi, poi lascia che moodler scelga i brani.',
         'knobs' => [
             'energy' => ['label' => 'Energia', 'low' => 'Calma', 'high' => 'Intensa'],
             'popularity' => ['label' => 'Popolarità', 'low' => 'Chicche nascoste', 'high' => 'Grandi successi'],

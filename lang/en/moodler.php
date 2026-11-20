@@ -18,7 +18,7 @@ return [
         'submit' => 'Read my mood',
         'submit_again' => 'Read my mood again',
         'submitting' => 'Reading your mood…',
-        'replace_note' => 'Reading it again replaces the atmosphere you picked.',
+        'replace_note' => 'Reading it again replaces the atmosphere and knobs you picked.',
     ],
 
     'atmosphere' => [
@@ -35,7 +35,7 @@ return [
 
     'tuning' => [
         'title' => 'Fine-tune the mix',
-        'subtitle' => 'Slide the knobs, then let moodler pick the songs.',
+        'subtitle' => 'We set them for your moment. Slide them as you like, then let moodler pick the songs.',
         'knobs' => [
             'energy' => ['label' => 'Energy', 'low' => 'Calm', 'high' => 'Intense'],
             'popularity' => ['label' => 'Popularity', 'low' => 'Hidden gems', 'high' => 'Big hits'],

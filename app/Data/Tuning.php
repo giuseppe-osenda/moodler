@@ -14,6 +14,25 @@ final readonly class Tuning
     ) {}
 
     /**
+     * Build a tuning from untrusted values, clamped to 0–100 and snapped to the sliders' 5-point steps.
+     *
+     * @param  array{energy?: mixed, popularity?: mixed, instrumentalness?: mixed}  $values
+     */
+    public static function fromArray(array $values): self
+    {
+        $defaults = new self;
+        $knob = fn (string $key, int $default): int => is_numeric($values[$key] ?? null)
+            ? (int) (round(max(0, min(100, (float) $values[$key])) / 5) * 5)
+            : $default;
+
+        return new self(
+            energy: $knob('energy', $defaults->energy),
+            popularity: $knob('popularity', $defaults->popularity),
+            instrumentalness: $knob('instrumentalness', $defaults->instrumentalness),
+        );
+    }
+
+    /**
      * Describe the tuning in words an LLM can follow.
      *
      * @return list<string>

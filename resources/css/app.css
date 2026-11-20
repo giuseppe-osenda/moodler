@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+
+    --color-ink-950: oklch(0.15 0.02 290);
+    --color-ink-900: oklch(0.19 0.025 290);
+    --color-ink-800: oklch(0.24 0.03 290);
+    --color-ink-700: oklch(0.32 0.03 290);
+    --color-ember-300: oklch(0.85 0.1 55);
+    --color-ember-400: oklch(0.78 0.15 45);
+    --color-ember-500: oklch(0.7 0.18 35);
+    --color-dusk-400: oklch(0.7 0.14 330);
+
+    --animate-rise-in: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes rise-in {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+.moodler-backdrop {
+    background-color: var(--color-ink-950);
+    background-image:
+        radial-gradient(ellipse at top left, color-mix(in oklch, var(--color-ember-500) 18%, transparent), transparent 55%),
+        radial-gradient(ellipse at bottom right, color-mix(in oklch, var(--color-dusk-400) 14%, transparent), transparent 50%);
+    background-attachment: fixed;
+}
+
+input[type='range'].knob {
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-ink-700 accent-ember-400;
+}
+
+input[type='range'].knob::-webkit-slider-thumb {
+    @apply size-5 appearance-none rounded-full border-2 border-ink-950 bg-ember-400 shadow-lg shadow-ember-500/40 transition hover:scale-110;
+}
+
+input[type='range'].knob::-moz-range-thumb {
+    @apply size-5 rounded-full border-2 border-ink-950 bg-ember-400;
+}

@@ -36,17 +36,27 @@ class MoodComposer extends Component
 
     private const LOCALE_COOKIE_MINUTES = 60 * 24 * 365;
 
+    /**
+     * Atmosphere fields that accept several values, with how many each allows.
+     */
+    private const MULTIPLE_CHOICE_LIMITS = [
+        'moods' => MoodProfile::MAX_MOODS,
+        'genres' => MoodProfile::MAX_GENRES,
+    ];
+
     public int $step = self::STEP_PHRASE;
 
     public string $phrase = '';
 
     public string $dayTime = '';
 
-    public string $mood = '';
+    /** @var list<string> */
+    public array $moods = [];
 
     public string $relationship = '';
 
-    public string $genre = '';
+    /** @var list<string> */
+    public array $genres = [];
 
     public int $energy = 50;
 
@@ -110,9 +120,9 @@ class MoodComposer extends Component
         }
 
         $this->dayTime = $interpretation->profile->dayTime;
-        $this->mood = $interpretation->profile->mood;
+        $this->moods = $interpretation->profile->moods;
         $this->relationship = $interpretation->profile->relationship;
-        $this->genre = $interpretation->profile->genre;
+        $this->genres = $interpretation->profile->genres;
         $this->energy = $interpretation->tuning->energy;
         $this->popularity = $interpretation->tuning->popularity;
         $this->instrumentalness = $interpretation->tuning->instrumentalness;
@@ -127,9 +137,11 @@ class MoodComposer extends Component
         $this->validate([
             'phrase' => self::PHRASE_RULES,
             'dayTime' => ['required', 'string', 'max:40'],
-            'mood' => ['required', 'string', 'max:40'],
+            'moods' => ['required', 'array', 'max:'.MoodProfile::MAX_MOODS],
+            'moods.*' => ['required', 'string', 'max:40', 'distinct'],
             'relationship' => ['required', 'string', 'max:40'],
-            'genre' => ['required', 'string', 'max:40'],
+            'genres' => ['required', 'array', 'max:'.MoodProfile::MAX_GENRES],
+            'genres.*' => ['required', 'string', 'max:40', 'distinct'],
             'energy' => ['required', 'integer', 'between:0,100'],
             'popularity' => ['required', 'integer', 'between:0,100'],
             'instrumentalness' => ['required', 'integer', 'between:0,100'],
@@ -161,6 +173,32 @@ class MoodComposer extends Component
         $this->dispatch('tracks-updated', uris: array_column($this->tracks, 'uri'));
     }
 
+    /**
+     * Add or remove a mood or genre. At least one stays selected, and no more than the limit.
+     */
+    public function toggleOption(string $field, string $value): void
+    {
+        $limit = self::MULTIPLE_CHOICE_LIMITS[$field] ?? null;
+
+        if ($limit === null) {
+            return;
+        }
+
+        $selected = $this->{$field};
+
+        if (in_array($value, $selected, true)) {
+            if (count($selected) > 1) {
+                $this->{$field} = array_values(array_diff($selected, [$value]));
+            }
+
+            return;
+        }
+
+        if (count($selected) < $limit) {
+            $this->{$field} = [...$selected, $value];
+        }
+    }
+
     public function goToStep(int $step): void
     {
         if ($step === self::STEP_PHRASE || ($this->hasProfile() && in_array($step, [self::STEP_ATMOSPHERE, self::STEP_TUNING], true))) {
@@ -177,7 +215,7 @@ class MoodComposer extends Component
 
     public function hasProfile(): bool
     {
-        return $this->dayTime !== '' && $this->mood !== '' && $this->relationship !== '' && $this->genre !== '';
+        return $this->dayTime !== '' && $this->moods !== [] && $this->relationship !== '' && $this->genres !== [];
     }
 
     /**
@@ -201,20 +239,27 @@ class MoodComposer extends Component
     /**
      * Mood options per dimension. Values stay in English for the AI; labels follow the interface language.
      *
-     * @return array<string, array{label: string, options: list<array{value: string, label: string}>}>
+     * Moods and genres accept several values (`limit` set); time of day and company accept one.
+     *
+     * @return array<string, array{label: string, limit: ?int, selected: list<string>, options: list<array{value: string, label: string}>}>
      */
     public function atmosphereGroups(): array
     {
         $groups = [
-            'mood' => MoodCategories::withValue(MoodCategories::MOODS, $this->mood),
-            'genre' => MoodCategories::withValue(MoodCategories::GENRES, $this->genre),
-            'dayTime' => MoodCategories::withValue(MoodCategories::DAY_TIMES, $this->dayTime),
-            'relationship' => MoodCategories::withValue(MoodCategories::RELATIONSHIPS, $this->relationship),
+            'moods' => MoodCategories::MOODS,
+            'genres' => MoodCategories::GENRES,
+            'dayTime' => MoodCategories::DAY_TIMES,
+            'relationship' => MoodCategories::RELATIONSHIPS,
         ];
 
-        return collect($groups)->map(fn (array $options, string $field): array => [
+        return collect($groups)->map(fn (array $defaults, string $field): array => [
             'label' => __("moodler.atmosphere.groups.{$field}"),
-            'options' => array_map(fn (string $option): array => ['value' => $option, 'label' => self::optionLabel($option)], $options),
+            'limit' => self::MULTIPLE_CHOICE_LIMITS[$field] ?? null,
+            'selected' => (array) $this->{$field},
+            'options' => array_map(
+                fn (string $option): array => ['value' => $option, 'label' => self::optionLabel($option)],
+                MoodCategories::withValues($defaults, $this->{$field}),
+            ),
         ])->all();
     }
 
@@ -260,7 +305,7 @@ class MoodComposer extends Component
 
     private function profile(): MoodProfile
     {
-        return new MoodProfile($this->dayTime, $this->mood, $this->relationship, $this->genre);
+        return new MoodProfile($this->dayTime, $this->moods, $this->relationship, $this->genres);
     }
 
     private function tuning(): Tuning
@@ -271,7 +316,7 @@ class MoodComposer extends Component
     private function signature(): string
     {
         return md5(json_encode([
-            $this->phrase, $this->dayTime, $this->mood, $this->relationship, $this->genre,
+            $this->phrase, $this->dayTime, $this->moods, $this->relationship, $this->genres,
             $this->energy, $this->popularity, $this->instrumentalness,
         ], JSON_THROW_ON_ERROR));
     }

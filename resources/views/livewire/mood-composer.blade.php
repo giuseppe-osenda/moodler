@@ -88,13 +88,30 @@
 
                     @foreach ($this->atmosphereGroups() as $field => $group)
                         <fieldset wire:key="group-{{ $field }}">
-                            <legend class="mb-2 text-xs font-semibold tracking-widest text-white/40 uppercase">{{ $group['label'] }}</legend>
+                            <legend class="mb-2 text-xs font-semibold tracking-widest text-white/40 uppercase">
+                                {{ $group['label'] }}
+                                @if ($group['limit'])
+                                    <span class="ml-1 font-normal tracking-normal normal-case text-white/30">· {{ __('moodler.atmosphere.pick_up_to', ['max' => $group['limit']]) }}</span>
+                                @endif
+                            </legend>
                             <div class="flex flex-wrap gap-2">
                                 @foreach ($group['options'] as $option)
-                                    <label wire:key="{{ $field }}-{{ $option['value'] }}" class="cursor-pointer">
-                                        <input type="radio" class="peer sr-only" wire:model.live="{{ $field }}" value="{{ $option['value'] }}">
-                                        <span class="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition peer-checked:border-ember-400 peer-checked:bg-ember-400 peer-checked:text-ink-950 peer-focus-visible:ring-2 peer-focus-visible:ring-ember-300 hover:bg-white/10">{{ $option['label'] }}</span>
-                                    </label>
+                                    @if ($group['limit'])
+                                        @php($isSelected = in_array($option['value'], $group['selected'], true))
+                                        <button
+                                            type="button"
+                                            wire:key="{{ $field }}-{{ $option['value'] }}"
+                                            wire:click="toggleOption('{{ $field }}', {{ Js::from($option['value']) }})"
+                                            aria-pressed="{{ $isSelected ? 'true' : 'false' }}"
+                                            @disabled(! $isSelected && count($group['selected']) >= $group['limit'])
+                                            class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none aria-pressed:border-ember-400 aria-pressed:bg-ember-400 aria-pressed:text-ink-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/5"
+                                        >{{ $option['label'] }}</button>
+                                    @else
+                                        <label wire:key="{{ $field }}-{{ $option['value'] }}" class="cursor-pointer">
+                                            <input type="radio" class="peer sr-only" wire:model.live="{{ $field }}" value="{{ $option['value'] }}">
+                                            <span class="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition peer-checked:border-ember-400 peer-checked:bg-ember-400 peer-checked:text-ink-950 peer-focus-visible:ring-2 peer-focus-visible:ring-ember-300 hover:bg-white/10">{{ $option['label'] }}</span>
+                                        </label>
+                                    @endif
                                 @endforeach
                             </div>
                         </fieldset>

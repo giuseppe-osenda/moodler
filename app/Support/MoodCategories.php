@@ -27,25 +27,32 @@ class MoodCategories
     ];
 
     /**
-     * Return the default options plus the given value when it is not already one of them.
+     * Return the default options plus any of the given values that are not already among them.
      *
      * @param  list<string>  $defaults
+     * @param  string|list<string>|null  $values
      * @return list<string>
      */
-    public static function withValue(array $defaults, ?string $value): array
+    public static function withValues(array $defaults, string|array|null $values): array
     {
-        $value = trim((string) $value);
+        $options = $defaults;
 
-        if ($value === '') {
-            return $defaults;
-        }
+        foreach ((array) $values as $value) {
+            $value = trim((string) $value);
 
-        foreach ($defaults as $option) {
-            if (strcasecmp($option, $value) === 0) {
-                return $defaults;
+            if ($value === '') {
+                continue;
             }
+
+            foreach ($options as $option) {
+                if (strcasecmp($option, $value) === 0) {
+                    continue 2;
+                }
+            }
+
+            $options[] = $value;
         }
 
-        return [...$defaults, $value];
+        return $options;
     }
 }

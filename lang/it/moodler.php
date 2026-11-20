@@ -23,11 +23,12 @@ return [
 
     'atmosphere' => [
         'title' => 'Ecco cosa abbiamo capito',
-        'subtitle' => 'Tienilo così, oppure tocca qualsiasi voce per cambiare atmosfera.',
+        'subtitle' => 'Tienilo così, oppure tocca qualsiasi voce per cambiare atmosfera. Mood e generi si possono combinare.',
         'next' => 'Regola le sfumature',
+        'pick_up_to' => 'fino a :max',
         'groups' => [
-            'mood' => 'Mood',
-            'genre' => 'Genere',
+            'moods' => 'Mood',
+            'genres' => 'Generi',
             'dayTime' => 'Momento della giornata',
             'relationship' => 'In compagnia di',
         ],

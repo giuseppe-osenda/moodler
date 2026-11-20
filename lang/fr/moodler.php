@@ -23,11 +23,12 @@ return [
 
     'atmosphere' => [
         'title' => 'Voici ce que nous avons compris',
-        'subtitle' => 'Gardez-la ou touchez une option pour changer d’ambiance.',
+        'subtitle' => 'Gardez-la ou touchez une option pour changer d’ambiance. Humeurs et genres peuvent se combiner.',
         'next' => 'Ajuster les nuances',
+        'pick_up_to' => 'jusqu’à :max',
         'groups' => [
-            'mood' => 'Humeur',
-            'genre' => 'Genre',
+            'moods' => 'Humeurs',
+            'genres' => 'Genres',
             'dayTime' => 'Moment de la journée',
             'relationship' => 'En compagnie de',
         ],

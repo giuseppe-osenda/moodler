@@ -23,11 +23,12 @@ return [
 
     'atmosphere' => [
         'title' => 'Esto es lo que entendimos',
-        'subtitle' => 'Déjalo así o toca cualquier opción para cambiar el ambiente.',
+        'subtitle' => 'Déjalo así o toca cualquier opción para cambiar el ambiente. Puedes combinar moods y géneros.',
         'next' => 'Ajustar matices',
+        'pick_up_to' => 'hasta :max',
         'groups' => [
-            'mood' => 'Mood',
-            'genre' => 'Género',
+            'moods' => 'Mood',
+            'genres' => 'Géneros',
             'dayTime' => 'Momento del día',
             'relationship' => 'En compañía de',
         ],

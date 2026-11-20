@@ -23,11 +23,12 @@ return [
 
     'atmosphere' => [
         'title' => "Here's what we heard",
-        'subtitle' => 'Keep it, or tap anything to change the vibe.',
+        'subtitle' => 'Keep it, or tap anything to change the vibe. Moods and genres can be combined.',
         'next' => 'Fine-tune',
+        'pick_up_to' => 'up to :max',
         'groups' => [
-            'mood' => 'Mood',
-            'genre' => 'Genre',
+            'moods' => 'Moods',
+            'genres' => 'Genres',
             'dayTime' => 'Time of day',
             'relationship' => 'Listening with',
         ],

@@ -24,11 +24,12 @@ class TrackSuggester
             '',
             "Suggest {$count} real, existing songs available on Spotify. Every song must fit all of these:",
             "- Time of day: {$profile->dayTime}",
-            "- Mood: {$profile->mood}",
+            '- '.$this->describeMoods($profile->moods),
             "- Listening with: {$profile->relationship}",
-            "- Genre: {$profile->genre}",
+            '- '.$this->describeGenres($profile->genres),
             ...array_map(fn (string $line): string => "- {$line}", $tuning->describe()),
             '',
+            ...$this->blendingRules($profile),
             'Use at most two songs per artist. Use the exact official song title and main artist name.',
         ];
 
@@ -72,5 +73,46 @@ class TrackSuggester
             ->map(fn (array $track): TrackSuggestion => new TrackSuggestion(trim($track['title']), trim($track['artist'])))
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  list<string>  $moods
+     */
+    private function describeMoods(array $moods): string
+    {
+        return count($moods) === 1
+            ? "Mood: {$moods[0]}"
+            : 'Mood: one emotional tone that blends '.implode(' + ', $moods).', felt in every song';
+    }
+
+    /**
+     * @param  list<string>  $genres
+     */
+    private function describeGenres(array $genres): string
+    {
+        return count($genres) === 1
+            ? "Genre: {$genres[0]}"
+            : 'Genres: '.implode(', ', $genres).'. Every song clearly belongs to at least one of them';
+    }
+
+    /**
+     * Extra guidance that keeps a list coherent when it mixes several moods or genres.
+     *
+     * @return list<string>
+     */
+    private function blendingRules(MoodProfile $profile): array
+    {
+        $rules = [];
+
+        if (count($profile->moods) > 1) {
+            $rules[] = 'When the moods pull in different directions, resolve them the way the moment described above suggests.';
+        }
+
+        if (count($profile->genres) > 1) {
+            $rules[] = 'Share the list roughly evenly between the genres and favor songs and artists that sit where they meet.';
+            $rules[] = 'Order the list so it flows like one set: place songs that bridge two genres between songs of different genres, and avoid abrupt jumps.';
+        }
+
+        return $rules;
     }
 }

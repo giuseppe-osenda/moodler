@@ -23,11 +23,12 @@ return [
 
     'atmosphere' => [
         'title' => 'Das haben wir herausgehört',
-        'subtitle' => 'Lass es so oder tippe auf eine Option, um die Stimmung zu ändern.',
+        'subtitle' => 'Lass es so oder tippe auf eine Option, um die Stimmung zu ändern. Gefühle und Genres lassen sich kombinieren.',
         'next' => 'Zum Feinschliff',
+        'pick_up_to' => 'bis zu :max',
         'groups' => [
-            'mood' => 'Gefühl',
-            'genre' => 'Genre',
+            'moods' => 'Gefühle',
+            'genres' => 'Genres',
             'dayTime' => 'Tageszeit',
             'relationship' => 'Zusammen mit',
         ],

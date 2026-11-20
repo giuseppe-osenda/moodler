@@ -32,7 +32,7 @@ class MoodComposerTest extends TestCase
         Http::fake([
             'api.openai.com/v1/responses' => function (Request $request) use ($songs) {
                 $answer = $request['text']['format']['name'] === 'mood_interpretation'
-                    ? ['dayTime' => 'Dusk', 'mood' => 'Wistful', 'relationship' => 'Lovers', 'genre' => 'Soft Rock', 'energy' => 23, 'popularity' => 140, 'instrumentalness' => 81]
+                    ? ['dayTime' => 'Dusk', 'moods' => ['Wistful', 'Nostalgic'], 'relationship' => 'Lovers', 'genres' => ['Soft Rock'], 'energy' => 23, 'popularity' => 140, 'instrumentalness' => 81]
                     : ['tracks' => $songs];
 
                 return Http::response(['status' => 'completed', 'output' => [
@@ -68,8 +68,8 @@ class MoodComposerTest extends TestCase
             ->call('interpret')
             ->assertHasNoErrors()
             ->assertSet('step', MoodComposer::STEP_ATMOSPHERE)
-            ->assertSet('mood', 'Wistful')
-            ->assertSet('genre', 'Soft Rock')
+            ->assertSet('moods', ['Wistful', 'Nostalgic'])
+            ->assertSet('genres', ['Soft Rock'])
             ->assertSet('energy', 25)
             ->assertSet('popularity', 100)
             ->assertSet('instrumentalness', 80)
@@ -134,6 +134,57 @@ class MoodComposerTest extends TestCase
         Http::assertSent(fn (Request $request): bool => ($request['text']['format']['name'] ?? null) === 'track_suggestions'
             && str_contains($request['input'], 'already heard them')
             && str_contains($request['input'], '- Dreams - Fleetwood Mac'));
+    }
+
+    public function test_moods_and_genres_can_be_combined_up_to_the_limit(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('toggleOption', 'genres', 'Folk')
+            ->call('toggleOption', 'genres', 'Indie')
+            ->assertSet('genres', ['Soft Rock', 'Folk', 'Indie'])
+            ->call('toggleOption', 'genres', 'Jazz')
+            ->assertSet('genres', ['Soft Rock', 'Folk', 'Indie'])
+            ->call('toggleOption', 'moods', 'Wistful')
+            ->assertSet('moods', ['Nostalgic'])
+            ->call('toggleOption', 'moods', 'Nostalgic')
+            ->assertSet('moods', ['Nostalgic'])
+            ->call('toggleOption', 'relationship', 'Friends')
+            ->assertSet('relationship', 'Lovers');
+    }
+
+    public function test_a_mixed_list_asks_the_ai_to_blend_moods_and_genres(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('toggleOption', 'genres', 'Folk')
+            ->call('compose')
+            ->assertHasNoErrors()
+            ->assertCount('tracks', 2);
+
+        Http::assertSent(fn (Request $request): bool => ($request['text']['format']['name'] ?? null) === 'track_suggestions'
+            && str_contains($request['input'], 'blends Wistful + Nostalgic')
+            && str_contains($request['input'], 'Genres: Soft Rock, Folk.')
+            && str_contains($request['input'], 'bridge two genres'));
+    }
+
+    public function test_composing_rejects_more_moods_than_allowed(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->set('moods', ['Joy', 'Sad', 'Angry', 'Tired'])
+            ->call('compose')
+            ->assertHasErrors(['moods' => 'max'])
+            ->assertSet('tracks', []);
     }
 
     public function test_it_explains_when_no_song_can_be_found(): void

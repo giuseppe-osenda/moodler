@@ -6,6 +6,7 @@ use App\Data\TrackSuggestion;
 use App\Services\SpotifyClient;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Tests\TestCase;
 
 class SpotifyClientTest extends TestCase
@@ -74,6 +75,53 @@ class SpotifyClientTest extends TestCase
 
         $this->assertSame(['sg'], array_map(fn ($track) => $track->id, $tracks));
         Http::assertSent(fn (Request $request): bool => ($request['q'] ?? null) === 'The Sound of Silence Simon and Garfunkel');
+    }
+
+    public function test_it_renews_a_rejected_token_and_retries(): void
+    {
+        Http::fake([
+            'accounts.spotify.com/*' => Http::sequence()
+                ->push(['access_token' => 'expired-token', 'expires_in' => 3600])
+                ->push(['access_token' => 'fresh-token', 'expires_in' => 3600]),
+            'api.spotify.com/v1/search*' => fn (Request $request) => $request->hasHeader('Authorization', 'Bearer fresh-token')
+                ? Http::response(['tracks' => ['items' => [$this->spotifyTrack('dreams', 'Dreams', ['Fleetwood Mac'])]]])
+                : Http::response(['error' => ['status' => 401, 'message' => 'Invalid access token']], 401),
+        ]);
+
+        $client = app(SpotifyClient::class);
+
+        $this->assertSame(['dreams'], array_map(fn ($track) => $track->id, $client->resolve([new TrackSuggestion('Dreams', 'Fleetwood Mac')])));
+        $this->assertSame(['dreams'], array_map(fn ($track) => $track->id, $client->resolve([new TrackSuggestion('Dreams', 'Fleetwood Mac')])));
+        $this->assertCount(2, Http::recorded(fn (Request $request): bool => str_contains($request->url(), 'accounts.spotify.com')));
+    }
+
+    public function test_tokens_cached_for_other_credentials_are_not_reused(): void
+    {
+        Http::fake([
+            'accounts.spotify.com/*' => fn (Request $request) => Http::response([
+                'access_token' => $request->hasHeader('Authorization', 'Basic '.base64_encode('client-id:client-secret')) ? 'real-token' : 'other-token',
+                'expires_in' => 3600,
+            ]),
+            'api.spotify.com/v1/search*' => Http::response(['tracks' => ['items' => [$this->spotifyTrack('dreams', 'Dreams', ['Fleetwood Mac'])]]]),
+        ]);
+
+        (new SpotifyClient('other-id', 'other-secret', 'IT'))->resolve([new TrackSuggestion('Dreams', 'Fleetwood Mac')]);
+        app(SpotifyClient::class)->resolve([new TrackSuggestion('Dreams', 'Fleetwood Mac')]);
+
+        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'api.spotify.com') && $request->hasHeader('Authorization', 'Bearer real-token'));
+    }
+
+    public function test_it_fails_loudly_when_every_search_is_rejected(): void
+    {
+        Http::fake([
+            'accounts.spotify.com/*' => Http::response(['access_token' => 'app-token', 'expires_in' => 3600]),
+            'api.spotify.com/v1/search*' => Http::response(['error' => ['status' => 403, 'message' => 'Forbidden']], 403),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('403');
+
+        app(SpotifyClient::class)->resolve([new TrackSuggestion('Dreams', 'Fleetwood Mac')]);
     }
 
     public function test_it_drops_duplicate_tracks_and_reuses_the_cached_token(): void

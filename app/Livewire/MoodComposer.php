@@ -2,10 +2,12 @@
 
 namespace App\Livewire;
 
+use App\Data\CatalogEntry;
 use App\Data\MoodProfile;
 use App\Data\Track;
 use App\Data\Tuning;
 use App\Http\Middleware\SetLocale;
+use App\Services\CatalogSearch;
 use App\Services\MoodInterpreter;
 use App\Services\PlaylistComposer;
 use App\Support\MoodCategories;
@@ -36,6 +38,15 @@ class MoodComposer extends Component
 
     private const LOCALE_COOKIE_MINUTES = 60 * 24 * 365;
 
+    private const MIN_SEARCH_LENGTH = 2;
+
+    private const MAX_SEARCH_LENGTH = 40;
+
+    private const EMPTY_CATALOG_SEARCHES = [
+        'moods' => ['query' => '', 'results' => [], 'failed' => false],
+        'genres' => ['query' => '', 'results' => [], 'failed' => false],
+    ];
+
     /**
      * Atmosphere fields that accept several values, with how many each allows.
      */
@@ -44,6 +55,9 @@ class MoodComposer extends Component
         'genres' => MoodProfile::MAX_GENRES,
     ];
 
+    /**
+     * The furthest section revealed so far. Sections stay on screen once shown.
+     */
     public int $step = self::STEP_PHRASE;
 
     public string $phrase = '';
@@ -81,6 +95,22 @@ class MoodComposer extends Component
 
     public string $locale = '';
 
+    /**
+     * The latest catalog search per field: what was typed, what came back, and whether the search failed.
+     *
+     * @var array<'moods'|'genres', array{query: string, results: list<array{value: string, label: string, description: string}>, failed: bool}>
+     */
+    #[Locked]
+    public array $catalogSearches = self::EMPTY_CATALOG_SEARCHES;
+
+    /**
+     * Labels and descriptions of options picked from a catalog search, by value.
+     *
+     * @var array<string, array{label: string, description: string}>
+     */
+    #[Locked]
+    public array $customOptions = [];
+
     public function mount(): void
     {
         $this->locale = App::getLocale();
@@ -99,6 +129,7 @@ class MoodComposer extends Component
 
         Cookie::queue(SetLocale::COOKIE, $locale, self::LOCALE_COOKIE_MINUTES);
         App::setLocale($locale);
+        $this->catalogSearches = self::EMPTY_CATALOG_SEARCHES;
         $this->dispatch('locale-changed', locale: $locale);
     }
 
@@ -111,7 +142,7 @@ class MoodComposer extends Component
         $this->errorKey = null;
 
         try {
-            $interpretation = $interpreter->interpret($this->phrase);
+            $interpretation = $interpreter->interpret($this->phrase, App::getLocale());
         } catch (RuntimeException $exception) {
             report($exception);
             $this->errorKey = 'interpret';
@@ -123,10 +154,14 @@ class MoodComposer extends Component
         $this->moods = $interpretation->profile->moods;
         $this->relationship = $interpretation->profile->relationship;
         $this->genres = $interpretation->profile->genres;
+        $this->customOptions = [...$this->customOptions, ...$interpretation->customOptions];
         $this->energy = $interpretation->tuning->energy;
         $this->popularity = $interpretation->tuning->popularity;
         $this->instrumentalness = $interpretation->tuning->instrumentalness;
-        $this->step = self::STEP_ATMOSPHERE;
+        if ($this->step < self::STEP_ATMOSPHERE) {
+            $this->step = self::STEP_ATMOSPHERE;
+            $this->dispatch('section-revealed', section: 'atmosphere');
+        }
     }
 
     /**
@@ -147,6 +182,7 @@ class MoodComposer extends Component
             'instrumentalness' => ['required', 'integer', 'between:0,100'],
         ], $this->phraseMessages());
         $this->errorKey = null;
+        $this->step = self::STEP_TUNING;
 
         try {
             $tracks = $composer->compose($this->phrase, $this->profile(), $this->tuning(), self::LIST_SIZE, $this->heardSongs);
@@ -163,6 +199,7 @@ class MoodComposer extends Component
             return;
         }
 
+        $isFirstList = $this->tracks === [];
         $this->tracks = array_map(fn (Track $track): array => $track->toArray(), $tracks);
         $this->heardSongs = array_slice(array_values(array_unique([
             ...array_map(fn (Track $track): string => "{$track->title} - {$track->artists}", $tracks),
@@ -171,6 +208,10 @@ class MoodComposer extends Component
         $this->composedSignature = $this->signature();
 
         $this->dispatch('tracks-updated', uris: array_column($this->tracks, 'uri'));
+
+        if ($isFirstList) {
+            $this->dispatch('section-revealed', section: 'player');
+        }
     }
 
     /**
@@ -196,13 +237,60 @@ class MoodComposer extends Component
 
         if (count($selected) < $limit) {
             $this->{$field} = [...$selected, $value];
+            $this->rememberCatalogOption($field, $value);
         }
     }
 
-    public function goToStep(int $step): void
+    /**
+     * Look up moods or genres beyond the built-in options that match what the player typed.
+     */
+    public function searchCatalog(CatalogSearch $catalog, string $field, string $query): void
     {
-        if ($step === self::STEP_PHRASE || ($this->hasProfile() && in_array($step, [self::STEP_ATMOSPHERE, self::STEP_TUNING], true))) {
-            $this->step = $step;
+        if (! array_key_exists($field, self::EMPTY_CATALOG_SEARCHES)) {
+            return;
+        }
+
+        $query = mb_substr(trim($query), 0, self::MAX_SEARCH_LENGTH);
+        $search = ['query' => $query, 'results' => [], 'failed' => false];
+
+        if (mb_strlen($query) >= self::MIN_SEARCH_LENGTH) {
+            try {
+                $search['results'] = array_map(
+                    fn (CatalogEntry $entry): array => $entry->toArray(),
+                    $catalog->search($field, $query, App::getLocale()),
+                );
+            } catch (RuntimeException $exception) {
+                report($exception);
+                $search['failed'] = true;
+            }
+        }
+
+        $this->catalogSearches[$field] = $search;
+    }
+
+    /**
+     * Search results that are not already shown among the options.
+     *
+     * @return list<array{value: string, label: string, description: string}>
+     */
+    public function catalogResults(string $field): array
+    {
+        $shown = array_map(mb_strtolower(...), MoodCategories::withValues($this->defaultOptions($field), $this->{$field}));
+
+        return array_values(array_filter(
+            $this->catalogSearches[$field]['results'] ?? [],
+            fn (array $result): bool => ! in_array(mb_strtolower($result['value']), $shown, true),
+        ));
+    }
+
+    /**
+     * Show the tuning section below the atmosphere.
+     */
+    public function revealTuning(): void
+    {
+        if ($this->hasProfile() && $this->step < self::STEP_TUNING) {
+            $this->step = self::STEP_TUNING;
+            $this->dispatch('section-revealed', section: 'tuning');
         }
     }
 
@@ -211,6 +299,16 @@ class MoodComposer extends Component
         $this->reset();
         $this->locale = App::getLocale();
         $this->dispatch('tracks-cleared');
+    }
+
+    public function showsAtmosphere(): bool
+    {
+        return $this->step >= self::STEP_ATMOSPHERE && $this->hasProfile();
+    }
+
+    public function showsTuning(): bool
+    {
+        return $this->step >= self::STEP_TUNING && $this->hasProfile();
     }
 
     public function hasProfile(): bool
@@ -241,26 +339,23 @@ class MoodComposer extends Component
      *
      * Moods and genres accept several values (`limit` set); time of day and company accept one.
      *
-     * @return array<string, array{label: string, limit: ?int, selected: list<string>, options: list<array{value: string, label: string}>}>
+     * @return array<string, array{label: string, limit: ?int, selected: list<string>, options: list<array{value: string, label: string, description: ?string}>}>
      */
     public function atmosphereGroups(): array
     {
-        $groups = [
-            'moods' => MoodCategories::MOODS,
-            'genres' => MoodCategories::GENRES,
-            'dayTime' => MoodCategories::DAY_TIMES,
-            'relationship' => MoodCategories::RELATIONSHIPS,
-        ];
-
-        return collect($groups)->map(fn (array $defaults, string $field): array => [
+        return collect(['moods', 'genres', 'dayTime', 'relationship'])->mapWithKeys(fn (string $field): array => [$field => [
             'label' => __("moodler.atmosphere.groups.{$field}"),
             'limit' => self::MULTIPLE_CHOICE_LIMITS[$field] ?? null,
             'selected' => (array) $this->{$field},
             'options' => array_map(
-                fn (string $option): array => ['value' => $option, 'label' => self::optionLabel($option)],
-                MoodCategories::withValues($defaults, $this->{$field}),
+                fn (string $option): array => [
+                    'value' => $option,
+                    'label' => $this->customOptions[$option]['label'] ?? self::optionLabel($option),
+                    'description' => $this->optionDescription($option),
+                ],
+                MoodCategories::withValues($this->defaultOptions($field), $this->{$field}),
             ),
-        ])->all();
+        ]])->all();
     }
 
     /**
@@ -284,6 +379,52 @@ class MoodComposer extends Component
         $key = "moodler.options.{$option}";
 
         return Lang::has($key) ? __($key) : $option;
+    }
+
+    /**
+     * What a mood or genre sounds like, when known: built-in ones are described in the
+     * language files, options proposed by the AI or found by a search keep the description it gave.
+     */
+    private function optionDescription(string $option): ?string
+    {
+        if (filled($this->customOptions[$option]['description'] ?? null)) {
+            return $this->customOptions[$option]['description'];
+        }
+
+        foreach (['mood_descriptions', 'genre_descriptions'] as $group) {
+            if (Lang::has($key = "moodler.{$group}.{$option}")) {
+                return __($key);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function defaultOptions(string $field): array
+    {
+        return match ($field) {
+            'moods' => MoodCategories::MOODS,
+            'genres' => MoodCategories::GENRES,
+            'dayTime' => MoodCategories::DAY_TIMES,
+            'relationship' => MoodCategories::RELATIONSHIPS,
+        };
+    }
+
+    /**
+     * Keep the label and description of an option picked from a search, so its chip stays readable.
+     */
+    private function rememberCatalogOption(string $field, string $value): void
+    {
+        foreach ($this->catalogSearches[$field]['results'] ?? [] as $result) {
+            if ($result['value'] === $value) {
+                $this->customOptions[$value] = ['label' => $result['label'], 'description' => $result['description']];
+
+                return;
+            }
+        }
     }
 
     public function render(): View

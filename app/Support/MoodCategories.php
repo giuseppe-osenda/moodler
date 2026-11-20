@@ -12,7 +12,7 @@ class MoodCategories
 
     /** @var list<string> */
     public const MOODS = [
-        'Amused', 'Angry', 'Bored', 'Confident', 'Cozy', 'Excited', 'Grateful', 'Hopeful',
+        'Amused', 'Angry', 'Bored', 'Confident', 'Cozy', 'Determined', 'Energetic', 'Excited', 'Focused', 'Grateful', 'Hopeful',
         'Inspirational', 'Joy', 'Loving', 'Melancholic', 'Nostalgic', 'Relaxed', 'Sad', 'Tired',
     ];
 
@@ -54,5 +54,21 @@ class MoodCategories
         }
 
         return $options;
+    }
+
+    /**
+     * Return the built-in spelling of a value when it is one of the defaults (ignoring case), or null.
+     *
+     * @param  list<string>  $defaults
+     */
+    public static function builtIn(array $defaults, string $value): ?string
+    {
+        foreach ($defaults as $option) {
+            if (strcasecmp($option, trim($value)) === 0) {
+                return $option;
+            }
+        }
+
+        return null;
     }
 }

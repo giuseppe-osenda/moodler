@@ -42,6 +42,34 @@ return [
         'accounts_url' => env('SPOTIFY_ACCOUNTS_URL', 'https://accounts.spotify.com'),
     ],
 
+    'youtube' => [
+        'key' => env('YOUTUBE_API_KEY'),
+        'api_url' => env('YOUTUBE_API_URL', 'https://www.googleapis.com/youtube/v3'),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
+    /*
+    | Sign in with Apple. The client secret is generated from the private key (.p8),
+    | so APPLE_CLIENT_SECRET stays empty. See socialiteproviders/apple.
+    */
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID'),
+        'client_secret' => env('APPLE_CLIENT_SECRET'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'team_id' => env('APPLE_TEAM_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+        'redirect' => env('APPLE_REDIRECT_URI', '/auth/apple/callback'),
+    ],
+
+    'paddle' => [
+        'price_id' => env('PADDLE_PRICE_ID'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

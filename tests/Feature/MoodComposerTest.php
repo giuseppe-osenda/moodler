@@ -3,67 +3,24 @@
 namespace Tests\Feature;
 
 use App\Livewire\MoodComposer;
+use App\Services\YouTubeClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
+use Tests\Concerns\FakesMusicServices;
 use Tests\TestCase;
 
 class MoodComposerTest extends TestCase
 {
+    use FakesMusicServices, RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        Http::preventStrayRequests();
-        config([
-            'services.openai.key' => 'sk-test',
-            'services.spotify.client_id' => 'client-id',
-            'services.spotify.client_secret' => 'client-secret',
-        ]);
-    }
-
-    /**
-     * Fake OpenAI (mood profile + song suggestions) and Spotify (token + search).
-     *
-     * @param  list<array{title: string, artist: string}>  $songs
-     * @param  list<array{value: string, label: string, description: string}>  $catalog  what a catalog search finds
-     */
-    private function fakeApis(array $songs = [['title' => 'Dreams', 'artist' => 'Fleetwood Mac'], ['title' => 'Harvest Moon', 'artist' => 'Neil Young']], array $catalog = []): void
-    {
-        Http::fake([
-            'api.openai.com/v1/responses' => function (Request $request) use ($songs, $catalog) {
-                $answer = match ($request['text']['format']['name']) {
-                    'mood_interpretation' => [
-                        'dayTime' => 'dusk',
-                        'moods' => [
-                            ['value' => 'Wistful', 'label' => 'Struggente', 'description' => 'Un rimpianto dolce e malinconico.'],
-                            ['value' => 'nostalgic', 'label' => 'Nostalgico', 'description' => 'Ignored: built-in moods use the language files.'],
-                        ],
-                        'relationship' => 'Lovers',
-                        'genres' => [['value' => 'Soft Rock', 'label' => 'Soft rock', 'description' => 'Rock morbido e melodico.']],
-                        'energy' => 23, 'popularity' => 140, 'instrumentalness' => 81,
-                    ],
-                    'catalog_search' => ['results' => $catalog],
-                    default => ['tracks' => $songs],
-                };
-
-                return Http::response(['status' => 'completed', 'output' => [
-                    ['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($answer)]]],
-                ]]);
-            },
-            'accounts.spotify.com/*' => Http::response(['access_token' => 'app-token', 'expires_in' => 3600]),
-            'api.spotify.com/v1/search*' => function (Request $request) {
-                preg_match('/track:"(.+?)" artist:"(.+?)"/', $request['q'], $match);
-
-                return Http::response(['tracks' => ['items' => $match === [] ? [] : [[
-                    'id' => md5($match[1]),
-                    'name' => $match[1],
-                    'duration_ms' => 200000,
-                    'artists' => [['name' => $match[2]]],
-                    'album' => ['name' => 'Album', 'images' => []],
-                ]]]]);
-            },
-        ]);
+        $this->configureMusicServices();
     }
 
     public function test_the_home_page_shows_the_first_step(): void
@@ -163,7 +120,10 @@ class MoodComposerTest extends TestCase
             ->assertHasNoErrors()
             ->assertCount('tracks', 2)
             ->assertSet('tracks.0.uri', 'spotify:track:'.md5('Dreams'))
-            ->assertDispatched('tracks-updated', uris: ['spotify:track:'.md5('Dreams'), 'spotify:track:'.md5('Harvest Moon')])
+            ->assertDispatched('tracks-updated', tracks: [
+                ['uri' => 'spotify:track:'.md5('Dreams'), 'durationMs' => 200000],
+                ['uri' => 'spotify:track:'.md5('Harvest Moon'), 'durationMs' => 200000],
+            ])
             ->assertSee(__('moodler.player.your_list'))
             ->assertSee('Harvest Moon')
             ->assertSee(__('moodler.actions.remix'));
@@ -340,6 +300,66 @@ class MoodComposerTest extends TestCase
             ->assertCount('catalogSearches.genres.results', 1)
             ->set('locale', 'en')
             ->assertSet('catalogSearches.genres.results', []);
+    }
+
+    public function test_the_player_offers_youtube_only_when_it_is_configured(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose')
+            ->assertDontSee(__('moodler.player.source'))
+            ->assertDontSee(__('moodler.player.start'));
+
+        config(['services.youtube.key' => 'yt-key']);
+        $this->app->forgetInstance(YouTubeClient::class);
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose')
+            ->assertSee([__('moodler.player.source'), 'YouTube', 'Spotify', __('moodler.player.start')]);
+    }
+
+    public function test_the_player_gets_the_youtube_video_of_a_track_and_nothing_for_unknown_ones(): void
+    {
+        $this->fakeApis();
+        config(['services.youtube.key' => 'yt-key']);
+        Http::fake(['www.googleapis.com/youtube/v3/search*' => Http::response(['items' => [
+            ['id' => ['videoId' => 'harvest1234'], 'snippet' => ['title' => 'Harvest Moon', 'channelTitle' => 'Neil Young - Topic']],
+        ]])]);
+
+        $component = Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose');
+
+        $this->assertSame(['status' => 'found', 'videoId' => 'harvest1234'], $component->instance()->youtubeVideo(app(YouTubeClient::class), 1));
+        $this->assertSame(['status' => 'missing'], $component->instance()->youtubeVideo(app(YouTubeClient::class), 99));
+    }
+
+    public function test_youtube_lookups_are_limited_per_visitor_but_cached_ones_stay_free(): void
+    {
+        $this->fakeApis();
+        config(['services.youtube.key' => 'yt-key']);
+        Http::fake(['www.googleapis.com/youtube/v3/search*' => Http::response(['items' => [
+            ['id' => ['videoId' => 'dreams12345'], 'snippet' => ['title' => 'Dreams', 'channelTitle' => 'Fleetwood Mac - Topic']],
+        ]])]);
+
+        $component = Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose');
+        $youtube = app(YouTubeClient::class);
+
+        $this->assertSame('found', $component->instance()->youtubeVideo($youtube, 0)['status']);
+
+        RateLimiter::increment('youtube-lookup:127.0.0.1', 3600, 100);
+
+        $this->assertSame('found', $component->instance()->youtubeVideo($youtube, 0)['status']);
+        $this->assertSame(['status' => 'unavailable'], $component->instance()->youtubeVideo($youtube, 1));
     }
 
     public function test_it_explains_when_no_song_can_be_found(): void

@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [SetLocale::class]);
+
+        // Paddle webhooks and Apple's sign-in callback are posted by those services, without our CSRF token.
+        $middleware->validateCsrfTokens(except: ['paddle/*', 'auth/apple/callback']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

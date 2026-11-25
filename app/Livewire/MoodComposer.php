@@ -2,21 +2,33 @@
 
 namespace App\Livewire;
 
+use App\Actions\StartSubscriptionCheckout;
 use App\Data\CatalogEntry;
 use App\Data\MoodProfile;
 use App\Data\Track;
 use App\Data\Tuning;
+use App\Exceptions\YouTubeUnavailable;
 use App\Http\Middleware\SetLocale;
+use App\Livewire\Concerns\AwaitsSubscription;
+use App\Models\Playlist;
+use App\Models\User;
 use App\Services\CatalogSearch;
+use App\Services\ListeningHistory;
 use App\Services\MoodInterpreter;
 use App\Services\PlaylistComposer;
+use App\Services\YouTubeClient;
 use App\Support\MoodCategories;
+use Exception;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\Renderless;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use RuntimeException;
@@ -24,6 +36,8 @@ use RuntimeException;
 #[Title('Moodler')]
 class MoodComposer extends Component
 {
+    use AwaitsSubscription;
+
     public const STEP_PHRASE = 1;
 
     public const STEP_ATMOSPHERE = 2;
@@ -34,9 +48,24 @@ class MoodComposer extends Component
 
     private const MAX_HEARD_SONGS = 45;
 
+    /**
+     * Songs the AI is asked to avoid at most: those heard in this visit plus those given for the same prompt before.
+     */
+    private const MAX_AVOIDED_SONGS = 90;
+
+    /**
+     * Where the latest list is kept, so it survives signing in and paying.
+     */
+    private const SESSION_KEY = 'moodler.composition';
+
     private const PHRASE_RULES = ['required', 'string', 'min:3', 'max:280'];
 
     private const LOCALE_COOKIE_MINUTES = 60 * 24 * 365;
+
+    /**
+     * YouTube searches one visitor may spend per hour, so nobody drains the shared daily quota.
+     */
+    private const YOUTUBE_LOOKUPS_PER_HOUR = 20;
 
     private const MIN_SEARCH_LENGTH = 2;
 
@@ -89,7 +118,27 @@ class MoodComposer extends Component
     #[Locked]
     public ?string $composedSignature = null;
 
-    /** @var 'interpret'|'compose'|'no_tracks'|null */
+    /**
+     * The phrase and settings the current list was composed with.
+     *
+     * @var array{phrase: string, dayTime: string, moods: list<string>, relationship: string, genres: list<string>, energy: int, popularity: int, instrumentalness: int}|array{}
+     */
+    #[Locked]
+    public array $composedPrompt = [];
+
+    /**
+     * The saved playlist this list started from, which saving overwrites unless saved as new.
+     */
+    #[Locked]
+    public ?int $playlistId = null;
+
+    public string $playlistName = '';
+
+    /** @var 'saved'|'updated'|null */
+    #[Locked]
+    public ?string $playlistNotice = null;
+
+    /** @var 'interpret'|'compose'|'no_tracks'|'checkout'|null */
     #[Locked]
     public ?string $errorKey = null;
 
@@ -111,9 +160,33 @@ class MoodComposer extends Component
     #[Locked]
     public array $customOptions = [];
 
-    public function mount(): void
+    /**
+     * Start empty, from a saved playlist, or from the list composed before signing in or paying.
+     */
+    public function mount(?Playlist $playlist = null): void
     {
         $this->locale = App::getLocale();
+
+        if ($playlist !== null) {
+            $this->authorize('view', $playlist);
+
+            if (! $this->user()?->canSavePlaylists()) {
+                session()->flash('status', __('moodler.library.subscription_needed'));
+                $this->redirectRoute('account');
+
+                return;
+            }
+
+            $this->loadPlaylist($playlist);
+
+            return;
+        }
+
+        if (request()->boolean('restore')) {
+            $this->restoreComposition();
+        }
+
+        $this->awaitSubscriptionAfterCheckout();
     }
 
     /**
@@ -167,7 +240,7 @@ class MoodComposer extends Component
     /**
      * Build a new track list from the current settings, avoiding songs already heard.
      */
-    public function compose(PlaylistComposer $composer): void
+    public function compose(PlaylistComposer $composer, ListeningHistory $history): void
     {
         $this->validate([
             'phrase' => self::PHRASE_RULES,
@@ -183,9 +256,14 @@ class MoodComposer extends Component
         ], $this->phraseMessages());
         $this->errorKey = null;
         $this->step = self::STEP_TUNING;
+        $prompt = $this->prompt();
+        $avoid = array_slice(array_values(array_unique([
+            ...$this->heardSongs,
+            ...$history->songsAlreadyGiven($prompt, $this->user()),
+        ])), 0, self::MAX_AVOIDED_SONGS);
 
         try {
-            $tracks = $composer->compose($this->phrase, $this->profile(), $this->tuning(), self::LIST_SIZE, $this->heardSongs);
+            $tracks = $composer->compose($this->phrase, $this->profile(), $this->tuning(), self::LIST_SIZE, $avoid);
         } catch (RuntimeException $exception) {
             report($exception);
             $this->errorKey = 'compose';
@@ -200,14 +278,17 @@ class MoodComposer extends Component
         }
 
         $isFirstList = $this->tracks === [];
-        $this->tracks = array_map(fn (Track $track): array => $track->toArray(), $tracks);
-        $this->heardSongs = array_slice(array_values(array_unique([
-            ...array_map(fn (Track $track): string => "{$track->title} - {$track->artists}", $tracks),
-            ...$this->heardSongs,
-        ])), 0, self::MAX_HEARD_SONGS);
-        $this->composedSignature = $this->signature();
+        $songs = array_map(fn (Track $track): string => "{$track->title} - {$track->artists}", $tracks);
+        $history->record($prompt, $songs, $this->user());
 
-        $this->dispatch('tracks-updated', uris: array_column($this->tracks, 'uri'));
+        $this->tracks = array_map(fn (Track $track): array => $track->toArray(), $tracks);
+        $this->heardSongs = array_slice(array_values(array_unique([...$songs, ...$this->heardSongs])), 0, self::MAX_HEARD_SONGS);
+        $this->composedSignature = $this->signature();
+        $this->composedPrompt = $prompt;
+        $this->playlistNotice = null;
+        $this->rememberComposition();
+
+        $this->dispatch('tracks-updated', tracks: $this->playerTracks());
 
         if ($isFirstList) {
             $this->dispatch('section-revealed', section: 'player');
@@ -284,6 +365,47 @@ class MoodComposer extends Component
     }
 
     /**
+     * Find the YouTube video for a track of the current list, right before it plays.
+     *
+     * @return array{status: 'found', videoId: string}|array{status: 'missing'|'unavailable'}
+     */
+    #[Renderless]
+    public function youtubeVideo(YouTubeClient $youtube, int $index): array
+    {
+        $track = $this->tracks[$index] ?? null;
+
+        if ($track === null) {
+            return ['status' => 'missing'];
+        }
+
+        $artist = trim(explode(',', $track['artists'])[0]);
+        $limiterKey = 'youtube-lookup:'.request()->ip();
+
+        if (! $youtube->isCached($track['title'], $artist)) {
+            if (RateLimiter::tooManyAttempts($limiterKey, self::YOUTUBE_LOOKUPS_PER_HOUR)) {
+                return ['status' => 'unavailable'];
+            }
+
+            RateLimiter::hit($limiterKey, 3600);
+        }
+
+        try {
+            $videoId = $youtube->findVideo($track['title'], $artist);
+        } catch (YouTubeUnavailable $exception) {
+            report($exception);
+
+            return ['status' => 'unavailable'];
+        }
+
+        return $videoId === null ? ['status' => 'missing'] : ['status' => 'found', 'videoId' => $videoId];
+    }
+
+    public function youtubeEnabled(): bool
+    {
+        return app(YouTubeClient::class)->isConfigured();
+    }
+
+    /**
      * Show the tuning section below the atmosphere.
      */
     public function revealTuning(): void
@@ -298,7 +420,121 @@ class MoodComposer extends Component
     {
         $this->reset();
         $this->locale = App::getLocale();
+        session()->forget(self::SESSION_KEY);
         $this->dispatch('tracks-cleared');
+    }
+
+    /**
+     * Save the current list as a playlist: over the one it was opened from, or as a new one.
+     * Without a name, the playlist is named after the phrase.
+     */
+    public function savePlaylist(bool $asNew = false): void
+    {
+        $user = $this->user();
+
+        if ($user === null) {
+            $this->signInToSave();
+
+            return;
+        }
+
+        if (! $user->canSavePlaylists() || $this->composedPrompt === []) {
+            return;
+        }
+
+        $this->validate(
+            ['playlistName' => ['nullable', 'string', 'max:'.Playlist::MAX_NAME_LENGTH]],
+            ['playlistName.max' => __('moodler.save.name_too_long', ['max' => Playlist::MAX_NAME_LENGTH])],
+        );
+
+        $name = trim($this->playlistName) !== ''
+            ? trim($this->playlistName)
+            : Str::limit($this->composedPrompt['phrase'], Playlist::MAX_NAME_LENGTH - 1, '…');
+        $attributes = [...$this->playlistAttributes(), 'name' => $name];
+        $existing = ! $asNew && $this->playlistId !== null ? $user->playlists()->find($this->playlistId) : null;
+
+        if ($existing !== null) {
+            $existing->update($attributes);
+            $this->playlistNotice = 'updated';
+        } else {
+            $this->playlistId = $user->playlists()->create($attributes)->id;
+            $this->playlistNotice = 'saved';
+        }
+
+        $this->playlistName = $name;
+        $this->rememberComposition();
+    }
+
+    /**
+     * Send a guest to sign in, then back to this list.
+     */
+    public function signInToSave(): void
+    {
+        session()->put('url.intended', route('home', ['restore' => 1]));
+        $this->redirectRoute('login');
+    }
+
+    /**
+     * Open Paddle's checkout for the monthly subscription.
+     */
+    public function startCheckout(StartSubscriptionCheckout $checkout): void
+    {
+        $user = $this->user();
+
+        if ($user === null) {
+            $this->signInToSave();
+
+            return;
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            session()->put('url.intended', route('home', ['restore' => 1]));
+            $this->redirectRoute('verification.notice');
+
+            return;
+        }
+
+        if ($user->subscribed()) {
+            return;
+        }
+
+        $this->errorKey = null;
+
+        try {
+            $options = $checkout($user, route('home', ['restore' => 1, 'subscribed' => 1]));
+        } catch (Exception $exception) {
+            report($exception);
+            $this->errorKey = 'checkout';
+
+            return;
+        }
+
+        $this->dispatch('paddle-checkout', options: $options);
+    }
+
+    /**
+     * What the save panel offers: signing in, subscribing, or saving.
+     *
+     * @return 'guest'|'subscribe'|'save'
+     */
+    public function saveMode(): string
+    {
+        $user = $this->user();
+
+        return match (true) {
+            $user === null => 'guest',
+            ! $user->canSavePlaylists() => 'subscribe',
+            default => 'save',
+        };
+    }
+
+    /**
+     * The name of the playlist this list was opened from, if it still exists.
+     */
+    #[Computed]
+    public function openedPlaylistName(): ?string
+    {
+        return $this->playlistId === null ? null : $this->user()?->playlists()->whereKey($this->playlistId)->value('name');
     }
 
     public function showsAtmosphere(): bool
@@ -442,6 +678,143 @@ class MoodComposer extends Component
             'phrase.min' => __('moodler.validation.phrase_min'),
             'phrase.max' => __('moodler.validation.phrase_max'),
         ];
+    }
+
+    /**
+     * What the player needs per track: the Spotify URI and the full length, to tell previews apart.
+     *
+     * @return list<array{uri: string, durationMs: int}>
+     */
+    public function playerTracks(): array
+    {
+        return array_map(fn (array $track): array => ['uri' => $track['uri'], 'durationMs' => $track['durationMs']], $this->tracks);
+    }
+
+    private function user(): ?User
+    {
+        $user = Auth::user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    /**
+     * @return array{phrase: string, dayTime: string, moods: list<string>, relationship: string, genres: list<string>, energy: int, popularity: int, instrumentalness: int}
+     */
+    private function prompt(): array
+    {
+        return [
+            'phrase' => $this->phrase,
+            'dayTime' => $this->dayTime,
+            'moods' => $this->moods,
+            'relationship' => $this->relationship,
+            'genres' => $this->genres,
+            'energy' => $this->energy,
+            'popularity' => $this->popularity,
+            'instrumentalness' => $this->instrumentalness,
+        ];
+    }
+
+    /**
+     * The composed prompt and its tracks, in the playlists table's columns.
+     *
+     * @return array<string, mixed>
+     */
+    private function playlistAttributes(): array
+    {
+        $prompt = $this->composedPrompt;
+        $usedOptions = [...$prompt['moods'], ...$prompt['genres']];
+
+        return [
+            'phrase' => $prompt['phrase'],
+            'day_time' => $prompt['dayTime'],
+            'moods' => $prompt['moods'],
+            'relationship' => $prompt['relationship'],
+            'genres' => $prompt['genres'],
+            'energy' => $prompt['energy'],
+            'popularity' => $prompt['popularity'],
+            'instrumentalness' => $prompt['instrumentalness'],
+            'tracks' => $this->tracks,
+            'custom_options' => array_intersect_key($this->customOptions, array_flip($usedOptions)) ?: null,
+        ];
+    }
+
+    private function loadPlaylist(Playlist $playlist): void
+    {
+        $this->fillComposition([
+            'prompt' => [
+                'phrase' => $playlist->phrase,
+                'dayTime' => $playlist->day_time,
+                'moods' => $playlist->moods,
+                'relationship' => $playlist->relationship,
+                'genres' => $playlist->genres,
+                'energy' => $playlist->energy,
+                'popularity' => $playlist->popularity,
+                'instrumentalness' => $playlist->instrumentalness,
+            ],
+            'tracks' => $playlist->tracks,
+            'heardSongs' => array_map(fn (array $track): string => "{$track['title']} - {$track['artists']}", $playlist->tracks),
+            'customOptions' => $playlist->custom_options ?? [],
+            'playlistId' => $playlist->id,
+            'playlistName' => $playlist->name,
+        ]);
+    }
+
+    /**
+     * Keep the latest list in the session, so signing in or paying does not lose it.
+     */
+    private function rememberComposition(): void
+    {
+        session()->put(self::SESSION_KEY, [
+            'prompt' => $this->composedPrompt,
+            'tracks' => $this->tracks,
+            'heardSongs' => $this->heardSongs,
+            'customOptions' => $this->customOptions,
+            'playlistId' => $this->playlistId,
+            'playlistName' => $this->playlistName,
+        ]);
+    }
+
+    private function restoreComposition(): void
+    {
+        $composition = session(self::SESSION_KEY);
+
+        if (! is_array($composition) || ($composition['tracks'] ?? []) === [] || ! is_array($composition['prompt'] ?? null)) {
+            return;
+        }
+
+        $ownsPlaylist = isset($composition['playlistId'])
+            && $this->user()?->playlists()->whereKey($composition['playlistId'])->exists();
+
+        $this->fillComposition([
+            ...$composition,
+            'playlistId' => $ownsPlaylist ? $composition['playlistId'] : null,
+            'playlistName' => $ownsPlaylist ? (string) ($composition['playlistName'] ?? '') : '',
+        ]);
+    }
+
+    /**
+     * @param  array{prompt: array{phrase: string, dayTime: string, moods: list<string>, relationship: string, genres: list<string>, energy: int, popularity: int, instrumentalness: int}, tracks: list<array<string, mixed>>, heardSongs: list<string>, customOptions: array<string, array{label: string, description: string}>, playlistId: ?int, playlistName: string}  $composition
+     */
+    private function fillComposition(array $composition): void
+    {
+        $prompt = $composition['prompt'];
+
+        $this->phrase = $prompt['phrase'];
+        $this->dayTime = $prompt['dayTime'];
+        $this->moods = $prompt['moods'];
+        $this->relationship = $prompt['relationship'];
+        $this->genres = $prompt['genres'];
+        $this->energy = $prompt['energy'];
+        $this->popularity = $prompt['popularity'];
+        $this->instrumentalness = $prompt['instrumentalness'];
+        $this->tracks = $composition['tracks'];
+        $this->heardSongs = $composition['heardSongs'];
+        $this->customOptions = $composition['customOptions'];
+        $this->playlistId = $composition['playlistId'];
+        $this->playlistName = $composition['playlistName'];
+        $this->composedPrompt = $prompt;
+        $this->composedSignature = $this->signature();
+        $this->step = self::STEP_TUNING;
     }
 
     private function profile(): MoodProfile

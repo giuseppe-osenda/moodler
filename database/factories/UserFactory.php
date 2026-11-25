@@ -42,4 +42,16 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Indicate that the user has an active subscription.
+     */
+    public function subscribed(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->subscriptions()->create([
+            'type' => 'default',
+            'paddle_id' => 'sub_'.Str::random(20),
+            'status' => 'active',
+        ]));
+    }
 }

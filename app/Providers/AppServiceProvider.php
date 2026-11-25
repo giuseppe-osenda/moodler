@@ -4,7 +4,11 @@ namespace App\Providers;
 
 use App\Services\OpenAiClient;
 use App\Services\SpotifyClient;
+use App\Services\YouTubeClient;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Apple\AppleExtendSocialite;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +30,11 @@ class AppServiceProvider extends ServiceProvider
             apiUrl: (string) config('services.spotify.api_url'),
             accountsUrl: (string) config('services.spotify.accounts_url'),
         ));
+
+        $this->app->singleton(YouTubeClient::class, fn (): YouTubeClient => new YouTubeClient(
+            apiKey: config('services.youtube.key'),
+            apiUrl: (string) config('services.youtube.api_url'),
+        ));
     }
 
     /**
@@ -33,6 +42,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Event::listen(SocialiteWasCalled::class, [AppleExtendSocialite::class, 'handle']);
     }
 }

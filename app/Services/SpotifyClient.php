@@ -4,12 +4,12 @@ namespace App\Services;
 
 use App\Data\Track;
 use App\Data\TrackSuggestion;
+use App\Support\SongNames;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -140,33 +140,17 @@ class SpotifyClient
      */
     private function matches(TrackSuggestion $suggestion, array $item): bool
     {
-        $wantedArtist = self::normalize($suggestion->artist);
-        $wantedTitle = self::normalize($suggestion->title);
-        $title = self::normalize((string) ($item['name'] ?? ''));
+        $wantedArtist = SongNames::normalize($suggestion->artist);
+        $wantedTitle = SongNames::normalize($suggestion->title);
+        $title = SongNames::normalize((string) ($item['name'] ?? ''));
 
         $artistMatches = collect($item['artists'] ?? [])
-            ->map(fn (array $artist): string => self::normalize((string) ($artist['name'] ?? '')))
-            ->contains(fn (string $artist): bool => $artist !== '' && (str_contains($artist, $wantedArtist) || str_contains($wantedArtist, $artist)));
+            ->map(fn (array $artist): string => SongNames::normalize((string) ($artist['name'] ?? '')))
+            ->contains(fn (string $artist): bool => SongNames::overlap($artist, $wantedArtist));
 
-        $titleMatches = $title !== '' && (str_contains($title, $wantedTitle) || str_contains($wantedTitle, $title));
+        $titleMatches = SongNames::overlap($title, $wantedTitle);
 
         return $artistMatches && $titleMatches;
-    }
-
-    private static function normalize(string $value): string
-    {
-        $value = Str::of($value)
-            ->ascii()
-            ->lower()
-            ->replaceMatches('/\(.*?\)|\[.*?\]/', ' ')
-            ->replaceMatches('/\s+-\s+.*$/', ' ')
-            ->replaceMatches('/\b(feat|ft|featuring)\b.*$/', ' ')
-            ->replace('&', ' and ')
-            ->replaceMatches('/^the\s+/', '')
-            ->replaceMatches('/[^a-z0-9]+/', ' ')
-            ->squish();
-
-        return (string) $value;
     }
 
     private function accessToken(): string

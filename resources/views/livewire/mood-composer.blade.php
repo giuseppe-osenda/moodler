@@ -20,12 +20,7 @@
         ></div>
     </div>
 
-    <header class="mb-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div class="flex min-w-0 items-baseline gap-3">
-            <h1 class="font-display text-3xl font-semibold tracking-tight text-white">moodler</h1>
-            <p class="hidden text-sm text-white/50 sm:block">{{ __('moodler.tagline') }}</p>
-        </div>
-
+    <x-page-header>
         <label class="flex items-center gap-2 text-xs text-white/50">
             <span class="sr-only sm:not-sr-only">{{ __('moodler.language') }}</span>
             <select
@@ -37,7 +32,9 @@
                 @endforeach
             </select>
         </label>
-    </header>
+    </x-page-header>
+
+    <x-subscription-banner :state="$subscriptionState" />
 
     <div @class([
         'grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' => $this->hasList,
@@ -224,14 +221,14 @@
             <section
                 id="section-player"
                 class="relative animate-rise-in scroll-mt-6 rounded-3xl border border-white/10 bg-ink-900/80 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7 lg:sticky lg:top-8"
-                x-data="spotifyPlayer(@js(array_column($tracks, 'uri')))"
-                x-on:tracks-updated.window="load($event.detail.uris)"
+                x-data="trackPlayer(@js($this->playerTracks()), @js($this->youtubeEnabled()))"
+                x-on:tracks-updated.window="load($event.detail.tracks)"
                 wire:key="player"
             >
                 <div class="mb-4 flex items-start justify-between gap-4">
                     <div class="min-w-0">
                         <p class="text-xs font-semibold tracking-widest text-white/40 uppercase">{{ __('moodler.player.your_list') }}</p>
-                        <p class="mt-1 truncate font-display text-xl text-white">“{{ $phrase }}”</p>
+                        <p class="mt-1 truncate font-display text-xl text-white">{{ $this->openedPlaylistName ?? '“'.$phrase.'”' }}</p>
                     </div>
                     <button
                         type="button"
@@ -243,8 +240,61 @@
                     </button>
                 </div>
 
-                <div wire:ignore class="min-h-[152px] overflow-hidden rounded-2xl bg-ink-950/60">
-                    <div x-ref="embed"></div>
+                @if ($this->youtubeEnabled())
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <span class="text-xs text-white/45" id="playback-source-label">{{ __('moodler.player.source') }}</span>
+                        <div class="inline-flex rounded-full border border-white/10 bg-ink-950/60 p-1" role="group" aria-labelledby="playback-source-label">
+                            @foreach (['youtube' => 'YouTube', 'spotify' => 'Spotify'] as $source => $name)
+                                <button
+                                    type="button"
+                                    x-on:click="setSource('{{ $source }}')"
+                                    x-bind:aria-pressed="source === '{{ $source }}'"
+                                    class="rounded-full px-3 py-1 text-xs font-medium text-white/60 transition hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white"
+                                >{{ $name }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Spotify embed --}}
+                <div x-show="source === 'spotify'" class="min-h-[152px] overflow-hidden rounded-2xl bg-ink-950/60">
+                    <div wire:ignore><div x-ref="spotifyEmbed"></div></div>
+                </div>
+
+                {{-- YouTube player: nothing is looked up until the listener presses play. --}}
+                @if ($this->youtubeEnabled())
+                    <div x-show="source === 'youtube'" x-cloak class="relative aspect-video overflow-hidden rounded-2xl bg-ink-950/60">
+                        <div wire:ignore class="absolute inset-0"><div x-ref="youtubeEmbed"></div></div>
+
+                        <button
+                            type="button"
+                            x-show="! youtubeStarted && ! resolving"
+                            x-on:click="play(current)"
+                            class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80 transition hover:text-white"
+                        >
+                            <span class="grid size-14 place-items-center rounded-full bg-ember-400 text-ink-950 shadow-lg shadow-ember-500/30">
+                                <svg class="ml-1 size-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.34-5.89a1.5 1.5 0 0 0 0-2.54L6.3 2.84Z" /></svg>
+                            </span>
+                            <span class="text-sm font-medium">{{ __('moodler.player.start') }}</span>
+                        </button>
+
+                        <div x-show="resolving" x-cloak class="absolute inset-0 flex items-center justify-center gap-3 bg-ink-950/70 text-sm text-white/70">
+                            <span class="size-5 animate-spin rounded-full border-2 border-white/15 border-t-ember-400"></span>
+                            {{ __('moodler.player.resolving') }}
+                        </div>
+                    </div>
+                @endif
+
+                <div aria-live="polite">
+                    <p x-show="notice === 'youtube_missing'" x-cloak class="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">{{ __('moodler.player.youtube_missing') }}</p>
+                    <div x-show="notice === 'youtube_unavailable'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">
+                        <span>{{ __('moodler.player.youtube_unavailable') }}</span>
+                        <button type="button" x-on:click="setSource('spotify')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_spotify') }}</button>
+                    </div>
+                    <div x-show="notice === 'preview'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+                        <span>{{ __('moodler.player.preview') }}</span>
+                        <button type="button" x-show="youtubeEnabled" x-on:click="setSource('youtube')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_youtube') }}</button>
+                    </div>
                 </div>
 
                 <ol class="mt-4 max-h-[60vh] space-y-1 overflow-y-auto pr-1">
@@ -256,7 +306,7 @@
                                 x-on:click="play({{ $index }})"
                                 x-on:keydown.enter.prevent="play({{ $index }})"
                                 class="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none"
-                                x-bind:class="current === {{ $index }} ? 'bg-white/10' : ''"
+                                x-bind:class="{ 'bg-white/10': current === {{ $index }}, 'opacity-40': source === 'youtube' && missing.includes({{ $index }}) }"
                             >
                                 <span class="w-5 shrink-0 text-right text-xs tabular-nums text-white/35" x-bind:class="current === {{ $index }} ? 'text-ember-300!' : ''">{{ $index + 1 }}</span>
                                 @if ($track['imageUrl'])
@@ -275,7 +325,66 @@
                     @endforeach
                 </ol>
 
-                <p class="mt-4 text-center text-xs text-white/35">{{ __('moodler.player.full_tracks') }}</p>
+                {{-- Saving: what it offers depends on whether the player is signed in and subscribed. --}}
+                <div class="mt-5 rounded-2xl border border-white/10 bg-ink-950/40 p-4" wire:key="save-panel-{{ $this->saveMode() }}">
+                    @if ($this->saveMode() === 'guest')
+                        <p class="text-sm text-white/65">{{ __('moodler.save.guest_pitch') }}</p>
+                        <button type="button" wire:click="signInToSave" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
+                            {{ __('moodler.save.sign_in') }}
+                        </button>
+                    @elseif ($this->saveMode() === 'subscribe')
+                        <p class="text-sm text-white/65">{{ __('moodler.save.subscribe_pitch') }}</p>
+                        <button type="button" wire:click="startCheckout" wire:loading.attr="disabled" wire:target="startCheckout" class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300 disabled:opacity-60">
+                            <span wire:loading.remove wire:target="startCheckout">{{ __('moodler.save.subscribe', ['price' => __('moodler.checkout.price')]) }}</span>
+                            <span wire:loading wire:target="startCheckout">{{ __('moodler.checkout.opening') }}</span>
+                        </button>
+                        @if ($errorKey === 'checkout')
+                            <p class="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" role="alert">{{ __('moodler.errors.checkout') }}</p>
+                        @endif
+                    @else
+                        <form wire:submit="savePlaylist({{ $this->openedPlaylistName === null ? 'true' : 'false' }})" class="space-y-3">
+                            <label for="playlist-name" class="block text-xs font-semibold tracking-widest text-white/40 uppercase">{{ __('moodler.save.name') }}</label>
+                            <input
+                                id="playlist-name"
+                                type="text"
+                                wire:model="playlistName"
+                                maxlength="{{ \App\Models\Playlist::MAX_NAME_LENGTH }}"
+                                placeholder="{{ $composedPrompt['phrase'] ?? $phrase }}"
+                                class="w-full rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-ember-400 focus:ring-2 focus:ring-ember-400/30 focus:outline-none"
+                            >
+                            <p class="text-xs text-white/35">{{ __('moodler.save.name_hint') }}</p>
+                            @error('playlistName') <p class="text-sm text-red-300">{{ $message }}</p> @enderror
+
+                            <div class="flex flex-wrap gap-2">
+                                @if ($this->openedPlaylistName !== null)
+                                    <button type="submit" class="flex-1 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300">
+                                        {{ __('moodler.save.overwrite', ['name' => Str::limit($this->openedPlaylistName, 40)]) }}
+                                    </button>
+                                    <button type="button" wire:click="savePlaylist(true)" class="flex-1 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
+                                        {{ __('moodler.save.as_new') }}
+                                    </button>
+                                @else
+                                    <button type="submit" class="flex-1 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300">
+                                        {{ __('moodler.save.save') }}
+                                    </button>
+                                @endif
+                            </div>
+
+                            @if ($this->hasPendingChanges)
+                                <p class="text-xs text-white/45">{{ __('moodler.save.pending_note') }}</p>
+                            @endif
+                            @if ($playlistNotice)
+                                <p class="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-sm text-emerald-100" role="status" wire:key="playlist-notice-{{ $playlistNotice }}">
+                                    {{ __("moodler.save.{$playlistNotice}") }}
+                                    <a href="{{ route('playlists.index') }}" wire:navigate class="ml-1 underline underline-offset-4">{{ __('moodler.save.view_all') }}</a>
+                                </p>
+                            @endif
+                        </form>
+                    @endif
+                </div>
+
+                <p x-show="source === 'spotify'" class="mt-4 text-center text-xs text-white/35">{{ __('moodler.player.full_tracks') }}</p>
+                <p x-show="source === 'youtube'" x-cloak class="mt-4 text-center text-xs text-white/35">{{ __('moodler.player.youtube_note') }}</p>
 
                 <div wire:loading.flex wire:target="compose" class="absolute inset-0 z-10 flex-col items-center justify-center gap-3 rounded-3xl bg-ink-950/80 backdrop-blur-sm">
                     <span class="size-8 animate-spin rounded-full border-2 border-white/15 border-t-ember-400"></span>

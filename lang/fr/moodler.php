@@ -70,6 +70,7 @@ return [
         'resolving' => 'Recherche du morceau sur YouTube…',
         'youtube_missing' => 'Ce morceau n’est pas disponible sur YouTube : passage au suivant.',
         'youtube_unavailable' => 'YouTube n’est pas disponible pour le moment.',
+        'youtube_limited' => 'Vous avez lancé beaucoup de nouveaux morceaux en peu de temps : YouTube revient dans environ :minutes min. En attendant, écoutez sur Spotify.',
         'use_spotify' => 'Utiliser Spotify',
         'use_youtube' => 'Passer à YouTube',
         'preview' => 'Vous écoutez un extrait de 30 secondes : connectez-vous à Spotify dans ce navigateur pour le morceau entier.',

@@ -70,6 +70,7 @@ return [
         'resolving' => 'Song wird auf YouTube gesucht…',
         'youtube_missing' => 'Dieser Song ist auf YouTube nicht verfügbar, weiter zum nächsten.',
         'youtube_unavailable' => 'YouTube ist gerade nicht verfügbar.',
+        'youtube_limited' => 'Du hast in kurzer Zeit sehr viele neue Songs gestartet: YouTube ist in etwa :minutes Min. wieder da. Bis dahin kannst du auf Spotify hören.',
         'use_spotify' => 'Spotify verwenden',
         'use_youtube' => 'Zu YouTube wechseln',
         'preview' => 'Du hörst eine 30-Sekunden-Vorschau: Melde dich in diesem Browser bei Spotify an, um den ganzen Song zu hören.',

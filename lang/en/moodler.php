@@ -70,6 +70,7 @@ return [
         'resolving' => 'Finding the track on YouTube…',
         'youtube_missing' => 'This track is not available on YouTube, skipping to the next one.',
         'youtube_unavailable' => 'YouTube is not available right now.',
+        'youtube_limited' => 'You\'ve switched to a lot of new songs in a short time: YouTube is back in about :minutes min. Meanwhile you can listen on Spotify.',
         'use_spotify' => 'Use Spotify',
         'use_youtube' => 'Switch to YouTube',
         'preview' => 'You are hearing a 30-second preview: log in to Spotify in this browser for the full track.',

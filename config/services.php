@@ -45,6 +45,8 @@ return [
     'youtube' => [
         'key' => env('YOUTUBE_API_KEY'),
         'api_url' => env('YOUTUBE_API_URL', 'https://www.googleapis.com/youtube/v3'),
+        // Only videos that can be watched from this country are searched.
+        'region' => env('YOUTUBE_REGION', env('SPOTIFY_MARKET', 'IT')),
     ],
 
     'google' => [

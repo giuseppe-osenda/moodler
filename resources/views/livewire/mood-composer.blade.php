@@ -291,6 +291,10 @@
                         <span>{{ __('moodler.player.youtube_unavailable') }}</span>
                         <button type="button" x-on:click="setSource('spotify')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_spotify') }}</button>
                     </div>
+                    <div x-show="notice === 'youtube_limited'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+                        <span x-text="{{ Js::from(__('moodler.player.youtube_limited')) }}.replace(':minutes', retryMinutes)"></span>
+                        <button type="button" x-on:click="setSource('spotify')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_spotify') }}</button>
+                    </div>
                     <div x-show="notice === 'preview'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
                         <span>{{ __('moodler.player.preview') }}</span>
                         <button type="button" x-show="youtubeEnabled" x-on:click="setSource('youtube')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_youtube') }}</button>

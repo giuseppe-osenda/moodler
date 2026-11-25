@@ -359,7 +359,31 @@ class MoodComposerTest extends TestCase
         RateLimiter::increment('youtube-lookup:127.0.0.1', 3600, 100);
 
         $this->assertSame('found', $component->instance()->youtubeVideo($youtube, 0)['status']);
-        $this->assertSame(['status' => 'unavailable'], $component->instance()->youtubeVideo($youtube, 1));
+        $limited = $component->instance()->youtubeVideo($youtube, 1);
+        $this->assertSame('limited', $limited['status']);
+        $this->assertGreaterThan(0, $limited['retryAfter']);
+    }
+
+    public function test_the_player_gets_another_video_when_one_does_not_play_and_ignores_bogus_ids(): void
+    {
+        $this->fakeApis();
+        config(['services.youtube.key' => 'yt-key']);
+        Http::fake(['www.googleapis.com/youtube/v3/search*' => Http::response(['items' => [
+            ['id' => ['videoId' => 'harvest1234'], 'snippet' => ['title' => 'Harvest Moon', 'channelTitle' => 'Neil Young - Topic']],
+            ['id' => ['videoId' => 'harvest5678'], 'snippet' => ['title' => 'Neil Young - Harvest Moon (Official Music Video)', 'channelTitle' => 'Neil Young']],
+        ]])]);
+
+        $component = Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose');
+        $youtube = app(YouTubeClient::class);
+
+        $this->assertSame(['status' => 'found', 'videoId' => 'harvest5678'], $component->instance()->youtubeVideo($youtube, 1, ['harvest1234', '<script>', 42]));
+        // The failed video now comes last for everyone.
+        $this->assertSame(['status' => 'found', 'videoId' => 'harvest5678'], $component->instance()->youtubeVideo($youtube, 1));
+        $this->assertSame(['status' => 'missing'], $component->instance()->youtubeVideo($youtube, 1, ['harvest1234', 'harvest5678']));
+        $this->assertCount(1, Http::recorded(fn (Request $request): bool => str_contains($request->url(), 'youtube/v3/search')));
     }
 
     public function test_it_explains_when_no_song_can_be_found(): void

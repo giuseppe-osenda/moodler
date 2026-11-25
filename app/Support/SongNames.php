@@ -27,6 +27,18 @@ class SongNames
     }
 
     /**
+     * Normalize a YouTube video or channel title. These put the artist and the song on either
+     * side of a dash ("Al Green - Let's Stay Together"), so every part is kept, and they come
+     * HTML-escaped ("Let&#39;s").
+     */
+    public static function normalizeVideoTitle(string $value): string
+    {
+        $parts = preg_split('/\s+[-–—|]\s+/u', html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?: [];
+
+        return collect($parts)->map(self::normalize(...))->filter()->implode(' ');
+    }
+
+    /**
      * Whether a normalized candidate name and the wanted one contain each other.
      */
     public static function overlap(string $candidate, string $wanted): bool

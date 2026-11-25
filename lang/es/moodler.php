@@ -70,6 +70,7 @@ return [
         'resolving' => 'Buscando la canción en YouTube…',
         'youtube_missing' => 'Esta canción no está disponible en YouTube: paso a la siguiente.',
         'youtube_unavailable' => 'YouTube no está disponible ahora mismo.',
+        'youtube_limited' => 'Has cambiado a muchas canciones nuevas en poco tiempo: YouTube vuelve en unos :minutes min. Mientras tanto puedes escuchar en Spotify.',
         'use_spotify' => 'Usar Spotify',
         'use_youtube' => 'Cambiar a YouTube',
         'preview' => 'Estás escuchando un avance de 30 segundos: inicia sesión en Spotify en este navegador para oír la canción completa.',

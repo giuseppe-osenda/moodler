@@ -34,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(YouTubeClient::class, fn (): YouTubeClient => new YouTubeClient(
             apiKey: config('services.youtube.key'),
             apiUrl: (string) config('services.youtube.api_url'),
+            regionCode: (string) config('services.youtube.region'),
         ));
     }
 

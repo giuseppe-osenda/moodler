@@ -64,8 +64,14 @@ class MoodComposer extends Component
 
     /**
      * YouTube searches one visitor may spend per hour, so nobody drains the shared daily quota.
+     * Songs already looked up are free, and the player only searches the track the listener settles on.
      */
-    private const YOUTUBE_LOOKUPS_PER_HOUR = 20;
+    private const YOUTUBE_LOOKUPS_PER_HOUR = 100;
+
+    /**
+     * Videos of one track the player may report as unplayable in a single lookup.
+     */
+    private const MAX_UNPLAYABLE_VIDEOS = 5;
 
     private const MIN_SEARCH_LENGTH = 2;
 
@@ -367,10 +373,14 @@ class MoodComposer extends Component
     /**
      * Find the YouTube video for a track of the current list, right before it plays.
      *
-     * @return array{status: 'found', videoId: string}|array{status: 'missing'|'unavailable'}
+     * Videos the player could not play (removed, blocked in this country, not allowed outside
+     * YouTube) are skipped in favour of the song's next candidate, and moved behind the others.
+     *
+     * @param  list<mixed>  $unplayable  ids of this track's videos that failed to play
+     * @return array{status: 'found', videoId: string}|array{status: 'limited', retryAfter: int}|array{status: 'missing'|'unavailable'}
      */
     #[Renderless]
-    public function youtubeVideo(YouTubeClient $youtube, int $index): array
+    public function youtubeVideo(YouTubeClient $youtube, int $index, array $unplayable = []): array
     {
         $track = $this->tracks[$index] ?? null;
 
@@ -379,22 +389,30 @@ class MoodComposer extends Component
         }
 
         $artist = trim(explode(',', $track['artists'])[0]);
+        $unplayable = array_slice(array_values(array_filter(
+            $unplayable,
+            fn (mixed $videoId): bool => is_string($videoId) && preg_match('/^[A-Za-z0-9_-]{11}$/', $videoId) === 1,
+        )), 0, self::MAX_UNPLAYABLE_VIDEOS);
         $limiterKey = 'youtube-lookup:'.request()->ip();
 
         if (! $youtube->isCached($track['title'], $artist)) {
             if (RateLimiter::tooManyAttempts($limiterKey, self::YOUTUBE_LOOKUPS_PER_HOUR)) {
-                return ['status' => 'unavailable'];
+                return ['status' => 'limited', 'retryAfter' => RateLimiter::availableIn($limiterKey)];
             }
 
             RateLimiter::hit($limiterKey, 3600);
         }
 
         try {
-            $videoId = $youtube->findVideo($track['title'], $artist);
+            $videoId = $youtube->findVideo($track['title'], $artist, $unplayable);
         } catch (YouTubeUnavailable $exception) {
             report($exception);
 
             return ['status' => 'unavailable'];
+        }
+
+        foreach ($unplayable as $unplayableId) {
+            $youtube->demote($track['title'], $artist, $unplayableId);
         }
 
         return $videoId === null ? ['status' => 'missing'] : ['status' => 'found', 'videoId' => $videoId];

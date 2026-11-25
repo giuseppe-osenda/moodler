@@ -71,6 +71,23 @@ function storePlaybackSource(source) {
  */
 const YOUTUBE_ENDED = 0;
 const YOUTUBE_PLAYING = 1;
+
+/**
+ * YouTube player error codes. 2 and 5 can be glitches of a player switching videos quickly;
+ * the others mean this video will never play here (removed, private, not embeddable, region-blocked).
+ */
+const YOUTUBE_GLITCH_ERRORS = [2, 5];
+
+/**
+ * When skipping through tracks, wait this long before looking one up, so only the track
+ * the listener settles on spends a YouTube search.
+ */
+const YOUTUBE_LOOKUP_DELAY_MS = 350;
+
+/**
+ * Look up the next track only once the current one has been playing this long.
+ */
+const YOUTUBE_PREFETCH_AFTER_MS = 20000;
 const SPOTIFY_PREVIEW_MAX_MS = 31000;
 
 /**
@@ -265,7 +282,10 @@ document.addEventListener('alpine:init', () => {
         let spotifyReady = null;
         let youtubePlayer = null;
         let youtubeReady = null;
+        let loadedVideo = null;
+        let prefetchTimer = null;
         const videoLookups = new Map();
+        const unplayableVideos = new Map();
 
         return {
             tracks: initialTracks,
@@ -275,6 +295,7 @@ document.addEventListener('alpine:init', () => {
             isPlaying: false,
             notice: null,
             missing: [],
+            retryMinutes: 0,
             resolving: false,
             youtubeStarted: false,
             generation: 0,
@@ -291,6 +312,7 @@ document.addEventListener('alpine:init', () => {
             },
 
             destroy() {
+                clearTimeout(prefetchTimer);
                 spotifyController?.destroy();
                 youtubePlayer?.destroy();
             },
@@ -308,6 +330,9 @@ document.addEventListener('alpine:init', () => {
                 this.resolving = false;
                 this.isPlaying = false;
                 videoLookups.clear();
+                unplayableVideos.clear();
+                loadedVideo = null;
+                clearTimeout(prefetchTimer);
 
                 if (this.source === 'spotify') {
                     spotifyController?.loadUri(tracks[0]?.uri);
@@ -373,7 +398,7 @@ document.addEventListener('alpine:init', () => {
                         events: {
                             onReady: () => resolve(youtubePlayer),
                             onStateChange: (event) => this.onYouTubeState(event.data),
-                            onError: () => this.onYouTubeError(),
+                            onError: (event) => this.onYouTubeError(event.data, event.target?.getVideoData?.()?.video_id),
                         },
                     });
                 }));
@@ -381,21 +406,27 @@ document.addEventListener('alpine:init', () => {
                 return youtubeReady;
             },
 
+            lookupKey(index) {
+                return `${this.generation}:${index}`;
+            },
+
             /**
-             * Ask the server for the track's video once per list; a failed lookup may be retried later.
+             * Ask the server for the track's video once per list, leaving out videos that failed to play.
+             * A lookup that hit a limit or an outage may be retried later.
              */
             lookupVideo(index) {
                 if (!this.tracks[index]) {
                     return Promise.resolve({ status: 'missing' });
                 }
 
-                const key = `${this.generation}:${index}`;
+                const unplayable = unplayableVideos.get(this.lookupKey(index)) ?? [];
+                const key = `${this.lookupKey(index)}:${unplayable.length}`;
 
                 if (!videoLookups.has(key)) {
-                    videoLookups.set(key, this.$wire.youtubeVideo(index)
+                    videoLookups.set(key, this.$wire.youtubeVideo(index, unplayable)
                         .catch(() => ({ status: 'unavailable' }))
                         .then((result) => {
-                            if (result?.status === 'unavailable') {
+                            if (!['found', 'missing'].includes(result?.status)) {
                                 videoLookups.delete(key);
                             }
 
@@ -406,10 +437,31 @@ document.addEventListener('alpine:init', () => {
                 return videoLookups.get(key);
             },
 
+            hasLookup(index) {
+                const unplayable = unplayableVideos.get(this.lookupKey(index)) ?? [];
+
+                return videoLookups.has(`${this.lookupKey(index)}:${unplayable.length}`);
+            },
+
             async playOnYouTube(index, autoplay) {
                 const generation = this.generation;
 
+                clearTimeout(prefetchTimer);
                 this.resolving = true;
+
+                // Stop the previous track at once instead of letting it play while the next one loads.
+                if (loadedVideo && loadedVideo.index !== index) {
+                    youtubePlayer?.pauseVideo();
+                }
+
+                if (!this.hasLookup(index)) {
+                    await new Promise((resolve) => setTimeout(resolve, YOUTUBE_LOOKUP_DELAY_MS));
+
+                    if (this.isStale(generation, index, 'youtube')) {
+                        return;
+                    }
+                }
+
                 const result = await this.lookupVideo(index);
 
                 if (this.isStale(generation, index, 'youtube')) {
@@ -428,6 +480,13 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
 
+                if (result.status === 'limited') {
+                    this.retryMinutes = Math.max(1, Math.ceil((result.retryAfter ?? 60) / 60));
+                    this.notice = 'youtube_limited';
+
+                    return;
+                }
+
                 if (result.status !== 'found') {
                     this.notice = 'youtube_unavailable';
 
@@ -440,11 +499,9 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
 
+                loadedVideo = { generation, index, videoId: result.videoId, retried: false };
                 this.youtubeStarted = true;
                 autoplay ? player.loadVideoById(result.videoId) : player.cueVideoById(result.videoId);
-
-                // Warm up the next track so it starts without waiting.
-                this.lookupVideo(index + 1);
             },
 
             markMissing(index) {
@@ -461,6 +518,19 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 this.isPlaying = state === YOUTUBE_PLAYING;
+                clearTimeout(prefetchTimer);
+
+                // Warm up the next track once this one is really being listened to, not while skipping.
+                if (state === YOUTUBE_PLAYING) {
+                    const generation = this.generation;
+                    const index = this.current;
+
+                    prefetchTimer = setTimeout(() => {
+                        if (!this.isStale(generation, index, 'youtube')) {
+                            this.lookupVideo(index + 1);
+                        }
+                    }, YOUTUBE_PREFETCH_AFTER_MS);
+                }
 
                 if (state === YOUTUBE_ENDED) {
                     this.next();
@@ -468,15 +538,32 @@ document.addEventListener('alpine:init', () => {
             },
 
             /**
-             * The video was removed, made private or cannot be embedded: skip it.
+             * A glitch is retried once; a video that cannot play here is swapped for the song's next candidate.
+             * Errors from a video the listener already skipped are ignored.
              */
-            onYouTubeError() {
-                if (this.source !== 'youtube') {
+            onYouTubeError(code, erroredVideoId) {
+                const video = loadedVideo;
+
+                if (this.source !== 'youtube' || !video || video.generation !== this.generation || video.index !== this.current) {
                     return;
                 }
 
-                this.markMissing(this.current);
-                this.next();
+                if (erroredVideoId && erroredVideoId !== video.videoId) {
+                    return;
+                }
+
+                if (YOUTUBE_GLITCH_ERRORS.includes(code) && !video.retried) {
+                    video.retried = true;
+                    youtubePlayer?.loadVideoById(video.videoId);
+
+                    return;
+                }
+
+                const key = this.lookupKey(video.index);
+
+                unplayableVideos.set(key, [...(unplayableVideos.get(key) ?? []), video.videoId]);
+                loadedVideo = null;
+                this.play(video.index);
             },
 
             // --- Spotify -------------------------------------------------------

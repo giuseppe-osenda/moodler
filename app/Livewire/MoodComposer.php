@@ -699,13 +699,14 @@ class MoodComposer extends Component
     }
 
     /**
-     * What the player needs per track: the Spotify URI and the full length, to tell previews apart.
+     * What the player needs per track: its page on Spotify, offered when YouTube cannot play it.
+     * Videos themselves are looked up by position, only when a track is about to play.
      *
-     * @return list<array{uri: string, durationMs: int}>
+     * @return list<array{url: string}>
      */
     public function playerTracks(): array
     {
-        return array_map(fn (array $track): array => ['uri' => $track['uri'], 'durationMs' => $track['durationMs']], $this->tracks);
+        return array_map(fn (array $track): array => ['url' => $track['url']], $this->tracks);
     }
 
     private function user(): ?User

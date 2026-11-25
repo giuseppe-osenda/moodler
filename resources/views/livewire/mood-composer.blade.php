@@ -221,7 +221,7 @@
             <section
                 id="section-player"
                 class="relative animate-rise-in scroll-mt-6 rounded-3xl border border-white/10 bg-ink-900/80 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7 lg:sticky lg:top-8"
-                x-data="trackPlayer(@js($this->playerTracks()), @js($this->youtubeEnabled()))"
+                x-data="trackPlayer(@js($this->playerTracks()))"
                 x-on:tracks-updated.window="load($event.detail.tracks)"
                 wire:key="player"
             >
@@ -240,30 +240,9 @@
                     </button>
                 </div>
 
-                @if ($this->youtubeEnabled())
-                    <div class="mb-3 flex items-center justify-between gap-3">
-                        <span class="text-xs text-white/45" id="playback-source-label">{{ __('moodler.player.source') }}</span>
-                        <div class="inline-flex rounded-full border border-white/10 bg-ink-950/60 p-1" role="group" aria-labelledby="playback-source-label">
-                            @foreach (['youtube' => 'YouTube', 'spotify' => 'Spotify'] as $source => $name)
-                                <button
-                                    type="button"
-                                    x-on:click="setSource('{{ $source }}')"
-                                    x-bind:aria-pressed="source === '{{ $source }}'"
-                                    class="rounded-full px-3 py-1 text-xs font-medium text-white/60 transition hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white"
-                                >{{ $name }}</button>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                {{-- Spotify embed --}}
-                <div x-show="source === 'spotify'" class="min-h-[152px] overflow-hidden rounded-2xl bg-ink-950/60">
-                    <div wire:ignore><div x-ref="spotifyEmbed"></div></div>
-                </div>
-
                 {{-- YouTube player: nothing is looked up until the listener presses play. --}}
                 @if ($this->youtubeEnabled())
-                    <div x-show="source === 'youtube'" x-cloak class="relative aspect-video overflow-hidden rounded-2xl bg-ink-950/60">
+                    <div class="relative aspect-video overflow-hidden rounded-2xl bg-ink-950/60">
                         <div wire:ignore class="absolute inset-0"><div x-ref="youtubeEmbed"></div></div>
 
                         <button
@@ -283,21 +262,19 @@
                             {{ __('moodler.player.resolving') }}
                         </div>
                     </div>
+                @else
+                    <p class="rounded-2xl border border-white/10 bg-ink-950/60 px-4 py-3 text-sm text-white/65">{{ __('moodler.player.no_playback') }}</p>
                 @endif
 
                 <div aria-live="polite">
                     <p x-show="notice === 'youtube_missing'" x-cloak class="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">{{ __('moodler.player.youtube_missing') }}</p>
                     <div x-show="notice === 'youtube_unavailable'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">
                         <span>{{ __('moodler.player.youtube_unavailable') }}</span>
-                        <button type="button" x-on:click="setSource('spotify')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_spotify') }}</button>
+                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.listen_on_spotify') }}</a>
                     </div>
                     <div x-show="notice === 'youtube_limited'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
                         <span x-text="{{ Js::from(__('moodler.player.youtube_limited')) }}.replace(':minutes', retryMinutes)"></span>
-                        <button type="button" x-on:click="setSource('spotify')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_spotify') }}</button>
-                    </div>
-                    <div x-show="notice === 'preview'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
-                        <span>{{ __('moodler.player.preview') }}</span>
-                        <button type="button" x-show="youtubeEnabled" x-on:click="setSource('youtube')" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.use_youtube') }}</button>
+                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.listen_on_spotify') }}</a>
                     </div>
                 </div>
 
@@ -305,12 +282,17 @@
                     @foreach ($tracks as $index => $track)
                         <li wire:key="track-{{ $track['id'] }}">
                             <div
-                                role="button"
-                                tabindex="0"
-                                x-on:click="play({{ $index }})"
-                                x-on:keydown.enter.prevent="play({{ $index }})"
-                                class="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none"
-                                x-bind:class="{ 'bg-white/10': current === {{ $index }}, 'opacity-40': source === 'youtube' && missing.includes({{ $index }}) }"
+                                @if ($this->youtubeEnabled())
+                                    role="button"
+                                    tabindex="0"
+                                    x-on:click="play({{ $index }})"
+                                    x-on:keydown.enter.prevent="play({{ $index }})"
+                                @endif
+                                @class([
+                                    'group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none',
+                                    'cursor-pointer hover:bg-white/5' => $this->youtubeEnabled(),
+                                ])
+                                x-bind:class="{ 'bg-white/10': current === {{ $index }}, 'opacity-40': missing.includes({{ $index }}) }"
                             >
                                 <span class="w-5 shrink-0 text-right text-xs tabular-nums text-white/35" x-bind:class="current === {{ $index }} ? 'text-ember-300!' : ''">{{ $index + 1 }}</span>
                                 @if ($track['imageUrl'])
@@ -323,7 +305,16 @@
                                     <span class="block truncate text-xs text-white/50">{{ $track['artists'] }}</span>
                                 </span>
                                 <span class="shrink-0 text-xs tabular-nums text-white/35">{{ sprintf('%d:%02d', intdiv(intdiv($track['durationMs'], 1000), 60), intdiv($track['durationMs'], 1000) % 60) }}</span>
-                                <a href="{{ $track['url'] }}" target="_blank" rel="noopener" x-on:click.stop class="shrink-0 rounded-md px-1.5 py-1 text-xs text-white/40 opacity-0 transition group-hover:opacity-100 hover:text-white focus-visible:opacity-100" title="{{ __('moodler.player.open') }}" aria-label="{{ __('moodler.player.open') }}">↗</a>
+                                {{-- Saving to a Spotify library needs the listener's Spotify login, which Spotify only allows a few test users: the track opens in Spotify instead. --}}
+                                <a
+                                    href="{{ $track['url'] }}"
+                                    target="_blank"
+                                    rel="noopener"
+                                    x-on:click.stop
+                                    data-tooltip="{{ __('moodler.player.save_on_spotify') }}"
+                                    aria-label="{{ __('moodler.player.save_on_spotify_label', ['title' => $track['title']]) }}"
+                                    class="grid size-8 shrink-0 place-items-center rounded-full text-[#1DB954]/75 transition hover:bg-white/10 hover:text-[#1DB954] focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none"
+                                ><svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21Zm4.82 15.15a.65.65 0 0 1-.9.22c-2.46-1.5-5.56-1.84-9.21-1.01a.66.66 0 1 1-.29-1.28c4-.91 7.42-.52 10.18 1.17.31.19.41.59.22.9Zm1.28-2.86a.82.82 0 0 1-1.13.27c-2.82-1.73-7.11-2.23-10.44-1.22a.82.82 0 1 1-.48-1.57c3.8-1.15 8.53-.6 11.78 1.4.39.23.51.73.27 1.12Zm.11-2.98C14.83 8.8 9.27 8.62 6.05 9.6a.98.98 0 1 1-.57-1.88c3.7-1.12 9.84-.9 13.72 1.4a.98.98 0 1 1-1 1.69Z"/></svg></a>
                             </div>
                         </li>
                     @endforeach
@@ -387,8 +378,10 @@
                     @endif
                 </div>
 
-                <p x-show="source === 'spotify'" class="mt-4 text-center text-xs text-white/35">{{ __('moodler.player.full_tracks') }}</p>
-                <p x-show="source === 'youtube'" x-cloak class="mt-4 text-center text-xs text-white/35">{{ __('moodler.player.youtube_note') }}</p>
+                <p class="mt-4 text-center text-xs text-white/35">
+                    @if ($this->youtubeEnabled()) {{ __('moodler.player.youtube_note') }} @endif
+                    {{ __('moodler.player.spotify_note') }}
+                </p>
 
                 <div wire:loading.flex wire:target="compose" class="absolute inset-0 z-10 flex-col items-center justify-center gap-3 rounded-3xl bg-ink-950/80 backdrop-blur-sm">
                     <span class="size-8 animate-spin rounded-full border-2 border-white/15 border-t-ember-400"></span>

@@ -1,25 +1,4 @@
 /**
- * Loads Spotify's iFrame API once and resolves with its IFrameAPI object.
- * @see https://developer.spotify.com/documentation/embeds/references/iframe-api
- */
-let spotifyApiPromise = null;
-
-function loadSpotifyIframeApi() {
-    if (!spotifyApiPromise) {
-        spotifyApiPromise = new Promise((resolve) => {
-            window.onSpotifyIframeApiReady = (IFrameAPI) => resolve(IFrameAPI);
-
-            const script = document.createElement('script');
-            script.src = 'https://open.spotify.com/embed/iframe-api/v1';
-            script.async = true;
-            document.body.appendChild(script);
-        });
-    }
-
-    return spotifyApiPromise;
-}
-
-/**
  * Loads YouTube's IFrame Player API once and resolves with the YT namespace.
  * @see https://developers.google.com/youtube/iframe_api_reference
  */
@@ -46,27 +25,6 @@ function loadYouTubeIframeApi() {
 }
 
 /**
- * The player each visitor picked last time. Storage can be unavailable (private mode), so failures are ignored.
- */
-const PLAYBACK_SOURCE_KEY = 'moodler.playback-source';
-
-function storedPlaybackSource() {
-    try {
-        return window.localStorage.getItem(PLAYBACK_SOURCE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-function storePlaybackSource(source) {
-    try {
-        window.localStorage.setItem(PLAYBACK_SOURCE_KEY, source);
-    } catch {
-        // Not remembered: the default applies next time.
-    }
-}
-
-/**
  * YouTube player states and errors we react to.
  */
 const YOUTUBE_ENDED = 0;
@@ -88,7 +46,6 @@ const YOUTUBE_LOOKUP_DELAY_MS = 350;
  * Look up the next track only once the current one has been playing this long.
  */
 const YOUTUBE_PREFETCH_AFTER_MS = 20000;
-const SPOTIFY_PREVIEW_MAX_MS = 31000;
 
 /**
  * Lowercase and strip accents, so "electronica" finds "Electrónica".
@@ -269,17 +226,14 @@ document.addEventListener('alpine:init', () => {
     }));
 
     /**
-     * One track list played through YouTube (full tracks for everyone) or the Spotify embed
-     * (full tracks only when signed in to Spotify in this browser). Click a row to play it;
-     * the next track starts when the current one ends.
+     * One track list played through YouTube. Click a row to play it; the next track starts
+     * when the current one ends.
      *
-     * YouTube videos are looked up on the server only when a track is about to play,
-     * because YouTube allows few searches a day. The third-party players live in closure
-     * variables, not in Alpine's reactive state, so they are never wrapped in proxies.
+     * Videos are looked up on the server only when a track is about to play, because YouTube
+     * allows few searches a day. The YouTube player lives in closure variables, not in
+     * Alpine's reactive state, so it is never wrapped in a proxy.
      */
-    window.Alpine.data('trackPlayer', (initialTracks = [], youtubeEnabled = false) => {
-        let spotifyController = null;
-        let spotifyReady = null;
+    window.Alpine.data('trackPlayer', (initialTracks = []) => {
         let youtubePlayer = null;
         let youtubeReady = null;
         let loadedVideo = null;
@@ -290,8 +244,6 @@ document.addEventListener('alpine:init', () => {
         return {
             tracks: initialTracks,
             current: 0,
-            youtubeEnabled,
-            source: youtubeEnabled && storedPlaybackSource() !== 'spotify' ? 'youtube' : 'spotify',
             isPlaying: false,
             notice: null,
             missing: [],
@@ -299,21 +251,10 @@ document.addEventListener('alpine:init', () => {
             resolving: false,
             youtubeStarted: false,
             generation: 0,
-            playWhenReady: false,
-            lastPosition: 0,
-            lastDuration: 0,
-            advancing: false,
             copied: false,
-
-            init() {
-                if (this.source === 'spotify') {
-                    this.ensureSpotify();
-                }
-            },
 
             destroy() {
                 clearTimeout(prefetchTimer);
-                spotifyController?.destroy();
                 youtubePlayer?.destroy();
             },
 
@@ -326,20 +267,14 @@ document.addEventListener('alpine:init', () => {
                 this.generation++;
                 this.missing = [];
                 this.notice = null;
-                this.advancing = false;
                 this.resolving = false;
                 this.isPlaying = false;
                 videoLookups.clear();
                 unplayableVideos.clear();
                 loadedVideo = null;
                 clearTimeout(prefetchTimer);
-
-                if (this.source === 'spotify') {
-                    spotifyController?.loadUri(tracks[0]?.uri);
-                } else {
-                    youtubePlayer?.stopVideo();
-                    this.youtubeStarted = false;
-                }
+                youtubePlayer?.stopVideo();
+                this.youtubeStarted = false;
             },
 
             play(index, autoplay = true) {
@@ -350,7 +285,7 @@ document.addEventListener('alpine:init', () => {
                 this.current = index;
                 this.notice = null;
 
-                return this.source === 'youtube' ? this.playOnYouTube(index, autoplay) : this.playOnSpotify(index, autoplay);
+                return this.playOnYouTube(index, autoplay);
             },
 
             next() {
@@ -361,33 +296,16 @@ document.addEventListener('alpine:init', () => {
                 }
             },
 
-            async setSource(source) {
-                if (source === this.source || (source === 'youtube' && !this.youtubeEnabled)) {
-                    return;
-                }
-
-                const wasPlaying = this.isPlaying;
-
-                spotifyController?.pause();
-                youtubePlayer?.pauseVideo();
-                this.source = source;
-                this.notice = null;
-                this.resolving = false;
-                this.isPlaying = false;
-                storePlaybackSource(source);
-
-                if (source === 'spotify') {
-                    await this.playOnSpotify(this.current, wasPlaying);
-                } else if (wasPlaying || this.youtubeStarted) {
-                    await this.playOnYouTube(this.current, wasPlaying);
-                }
+            isStale(generation, index) {
+                return generation !== this.generation || index !== this.current;
             },
 
-            isStale(generation, index, source) {
-                return generation !== this.generation || index !== this.current || source !== this.source;
+            /**
+             * The current track on Spotify, for listening there when YouTube cannot play it.
+             */
+            currentSpotifyUrl() {
+                return this.tracks[this.current]?.url ?? null;
             },
-
-            // --- YouTube -------------------------------------------------------
 
             ensureYouTube() {
                 youtubeReady ??= loadYouTubeIframeApi().then((YT) => new Promise((resolve) => {
@@ -457,14 +375,14 @@ document.addEventListener('alpine:init', () => {
                 if (!this.hasLookup(index)) {
                     await new Promise((resolve) => setTimeout(resolve, YOUTUBE_LOOKUP_DELAY_MS));
 
-                    if (this.isStale(generation, index, 'youtube')) {
+                    if (this.isStale(generation, index)) {
                         return;
                     }
                 }
 
                 const result = await this.lookupVideo(index);
 
-                if (this.isStale(generation, index, 'youtube')) {
+                if (this.isStale(generation, index)) {
                     return;
                 }
 
@@ -495,7 +413,7 @@ document.addEventListener('alpine:init', () => {
 
                 const player = await this.ensureYouTube();
 
-                if (this.isStale(generation, index, 'youtube')) {
+                if (this.isStale(generation, index)) {
                     return;
                 }
 
@@ -513,10 +431,6 @@ document.addEventListener('alpine:init', () => {
             },
 
             onYouTubeState(state) {
-                if (this.source !== 'youtube') {
-                    return;
-                }
-
                 this.isPlaying = state === YOUTUBE_PLAYING;
                 clearTimeout(prefetchTimer);
 
@@ -526,7 +440,7 @@ document.addEventListener('alpine:init', () => {
                     const index = this.current;
 
                     prefetchTimer = setTimeout(() => {
-                        if (!this.isStale(generation, index, 'youtube')) {
+                        if (!this.isStale(generation, index)) {
                             this.lookupVideo(index + 1);
                         }
                     }, YOUTUBE_PREFETCH_AFTER_MS);
@@ -544,7 +458,7 @@ document.addEventListener('alpine:init', () => {
             onYouTubeError(code, erroredVideoId) {
                 const video = loadedVideo;
 
-                if (this.source !== 'youtube' || !video || video.generation !== this.generation || video.index !== this.current) {
+                if (!video || video.generation !== this.generation || video.index !== this.current) {
                     return;
                 }
 
@@ -564,76 +478,6 @@ document.addEventListener('alpine:init', () => {
                 unplayableVideos.set(key, [...(unplayableVideos.get(key) ?? []), video.videoId]);
                 loadedVideo = null;
                 this.play(video.index);
-            },
-
-            // --- Spotify -------------------------------------------------------
-
-            ensureSpotify() {
-                spotifyReady ??= loadSpotifyIframeApi().then((IFrameAPI) => new Promise((resolve) => {
-                    IFrameAPI.createController(
-                        this.$refs.spotifyEmbed,
-                        { uri: this.tracks[this.current]?.uri, width: '100%', height: 152 },
-                        (controller) => {
-                            spotifyController = controller;
-                            controller.addListener('ready', () => {
-                                if (this.playWhenReady) {
-                                    this.playWhenReady = false;
-                                    controller.play();
-                                }
-                            });
-                            controller.addListener('playback_update', (event) => this.onSpotifyUpdate(event.data));
-                            resolve(controller);
-                        },
-                    );
-                }));
-
-                return spotifyReady;
-            },
-
-            async playOnSpotify(index, autoplay) {
-                this.lastPosition = 0;
-                this.lastDuration = 0;
-
-                const controller = await this.ensureSpotify();
-
-                if (this.source !== 'spotify' || index !== this.current) {
-                    return;
-                }
-
-                this.playWhenReady = autoplay;
-                controller.loadUri(this.tracks[index].uri);
-            },
-
-            onSpotifyUpdate({ isPaused, position, duration }) {
-                if (this.source !== 'spotify') {
-                    return;
-                }
-
-                const nearEnd = (pos, dur) => dur > 0 && pos >= dur - 1500;
-
-                this.isPlaying = !isPaused;
-
-                // A new track is playing normally: allow the next auto-advance.
-                if (!isPaused && !nearEnd(position, duration)) {
-                    this.advancing = false;
-                }
-
-                // Signed-out listeners only get a 30-second preview of each track.
-                if (duration > 0 && duration <= SPOTIFY_PREVIEW_MAX_MS && (this.tracks[this.current]?.durationMs ?? 0) > SPOTIFY_PREVIEW_MAX_MS + 10000) {
-                    this.notice = 'preview';
-                }
-
-                const ended = (isPaused && nearEnd(position, duration))
-                    || (isPaused && nearEnd(this.lastPosition, this.lastDuration) && position < this.lastPosition)
-                    || (!isPaused && duration > 0 && position >= duration);
-
-                this.lastPosition = position;
-                this.lastDuration = duration;
-
-                if (ended && !this.advancing) {
-                    this.advancing = true;
-                    this.next();
-                }
             },
 
             async copy(text) {

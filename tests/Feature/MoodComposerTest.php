@@ -121,8 +121,8 @@ class MoodComposerTest extends TestCase
             ->assertCount('tracks', 2)
             ->assertSet('tracks.0.uri', 'spotify:track:'.md5('Dreams'))
             ->assertDispatched('tracks-updated', tracks: [
-                ['uri' => 'spotify:track:'.md5('Dreams'), 'durationMs' => 200000],
-                ['uri' => 'spotify:track:'.md5('Harvest Moon'), 'durationMs' => 200000],
+                ['url' => 'https://open.spotify.com/track/'.md5('Dreams')],
+                ['url' => 'https://open.spotify.com/track/'.md5('Harvest Moon')],
             ])
             ->assertSee(__('moodler.player.your_list'))
             ->assertSee('Harvest Moon')
@@ -302,7 +302,24 @@ class MoodComposerTest extends TestCase
             ->assertSet('catalogSearches.genres.results', []);
     }
 
-    public function test_the_player_offers_youtube_only_when_it_is_configured(): void
+    public function test_the_list_plays_on_youtube_and_every_track_opens_in_spotify(): void
+    {
+        config(['services.youtube.key' => 'yt-key']);
+        $this->app->forgetInstance(YouTubeClient::class);
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('compose')
+            ->assertSee(__('moodler.player.start'))
+            ->assertDontSee(__('moodler.player.no_playback'))
+            ->assertDontSee('spotifyEmbed')
+            ->assertSee('https://open.spotify.com/track/'.md5('Dreams'))
+            ->assertSee(__('moodler.player.save_on_spotify_label', ['title' => 'Harvest Moon']), false);
+    }
+
+    public function test_without_youtube_the_tracks_still_open_in_spotify(): void
     {
         $this->fakeApis();
 
@@ -310,17 +327,9 @@ class MoodComposerTest extends TestCase
             ->set('phrase', 'sunset with my girlfriend')
             ->call('interpret')
             ->call('compose')
-            ->assertDontSee(__('moodler.player.source'))
-            ->assertDontSee(__('moodler.player.start'));
-
-        config(['services.youtube.key' => 'yt-key']);
-        $this->app->forgetInstance(YouTubeClient::class);
-
-        Livewire::test(MoodComposer::class)
-            ->set('phrase', 'sunset with my girlfriend')
-            ->call('interpret')
-            ->call('compose')
-            ->assertSee([__('moodler.player.source'), 'YouTube', 'Spotify', __('moodler.player.start')]);
+            ->assertDontSee(__('moodler.player.start'))
+            ->assertSee(__('moodler.player.no_playback'), false)
+            ->assertSee('https://open.spotify.com/track/'.md5('Harvest Moon'));
     }
 
     public function test_the_player_gets_the_youtube_video_of_a_track_and_nothing_for_unknown_ones(): void

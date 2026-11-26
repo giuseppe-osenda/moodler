@@ -20,6 +20,12 @@ return [
         'replace_note' => 'Al volver a leerlo se reemplazarán el ambiente y los matices que elegiste.',
     ],
 
+    'shuffle' => [
+        'moods' => 'Elegir estados de ánimo al azar',
+        'genres' => 'Elegir géneros al azar',
+        'tuning' => 'Ajustar los matices al azar',
+    ],
+
     'atmosphere' => [
         'title' => 'Esto es lo que entendimos',
         'subtitle' => 'Déjalo así o toca cualquier opción para cambiar el ambiente. Puedes combinar moods y géneros.',

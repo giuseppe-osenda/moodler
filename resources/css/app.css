@@ -54,3 +54,68 @@ input[type='range'].knob::-webkit-slider-thumb {
 input[type='range'].knob::-moz-range-thumb {
     @apply size-5 rounded-full border-2 border-ink-950 bg-ember-400;
 }
+
+/* Shuffle: chips light up in turn like a roulette, then the drawn ones land with a pulse. */
+.chip-roulette {
+    border-color: var(--color-ember-300) !important;
+    background-color: color-mix(in oklch, var(--color-ember-400) 28%, transparent) !important;
+    color: white !important;
+    opacity: 1 !important;
+    transform: scale(1.06);
+    box-shadow: 0 0 22px -4px var(--color-ember-400);
+    transition-duration: 90ms !important;
+}
+
+.chip-landed {
+    animation: chip-land 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes chip-land {
+    0% {
+        transform: scale(0.82);
+        box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-ember-400) 70%, transparent);
+    }
+    45% {
+        transform: scale(1.12);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 14px transparent;
+    }
+}
+
+.dice-rolling {
+    animation: dice-roll 0.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes dice-roll {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    50% {
+        transform: rotate(200deg) scale(0.8);
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+input[type='range'].knob.knob-shuffling::-webkit-slider-thumb {
+    @apply scale-125 bg-ember-300 shadow-ember-400/80;
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--color-ember-400) 25%, transparent), 0 0 24px var(--color-ember-400);
+}
+
+input[type='range'].knob.knob-shuffling::-moz-range-thumb {
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--color-ember-400) 25%, transparent), 0 0 24px var(--color-ember-400);
+}
+
+.knob-value-shuffling {
+    @apply text-ember-300;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chip-landed,
+    .dice-rolling {
+        animation: none;
+    }
+}

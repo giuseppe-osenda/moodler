@@ -20,6 +20,12 @@ return [
         'replace_note' => 'Reading it again replaces the atmosphere and knobs you picked.',
     ],
 
+    'shuffle' => [
+        'moods' => 'Pick random moods',
+        'genres' => 'Pick random genres',
+        'tuning' => 'Set the fine-tuning at random',
+    ],
+
     'atmosphere' => [
         'title' => "Here's what we heard",
         'subtitle' => 'Keep it, or tap anything to change the vibe. Moods and genres can be combined.',

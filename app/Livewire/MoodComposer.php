@@ -329,6 +329,44 @@ class MoodComposer extends Component
     }
 
     /**
+     * Apply the moods or genres the shuffle button drew. Only built-in options are accepted,
+     * at least one and no more than the limit.
+     *
+     * @param  list<mixed>  $values
+     */
+    public function applyShuffle(string $field, array $values): void
+    {
+        $limit = self::MULTIPLE_CHOICE_LIMITS[$field] ?? null;
+
+        if ($limit === null) {
+            return;
+        }
+
+        $drawn = array_slice(array_values(array_unique(array_filter(
+            $values,
+            fn (mixed $value): bool => is_string($value) && in_array($value, $this->defaultOptions($field), true),
+        ))), 0, $limit);
+
+        if ($drawn !== []) {
+            $this->{$field} = $drawn;
+        }
+    }
+
+    /**
+     * Apply the knob values the shuffle button drew, snapped to the sliders' steps of five.
+     *
+     * @param  array<mixed>  $values
+     */
+    public function applyTuningShuffle(array $values): void
+    {
+        foreach (array_keys($this->tuningKnobs()) as $knob) {
+            if (is_numeric($values[$knob] ?? null)) {
+                $this->{$knob} = (int) (round(max(0, min(100, (float) $values[$knob])) / 5) * 5);
+            }
+        }
+    }
+
+    /**
      * Look up moods or genres beyond the built-in options that match what the player typed.
      */
     public function searchCatalog(CatalogSearch $catalog, string $field, string $query): void
@@ -604,6 +642,7 @@ class MoodComposer extends Component
             'options' => array_map(
                 fn (string $option): array => [
                     'value' => $option,
+                    'builtIn' => in_array($option, $this->defaultOptions($field), true),
                     'label' => $this->customOptions[$option]['label'] ?? self::optionLabel($option),
                     'description' => $this->optionDescription($option),
                 ],

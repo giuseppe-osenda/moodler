@@ -20,6 +20,12 @@ return [
         'replace_note' => 'Beim erneuten Lesen werden die gewählte Stimmung und die Regler ersetzt.',
     ],
 
+    'shuffle' => [
+        'moods' => 'Zufällige Stimmungen wählen',
+        'genres' => 'Zufällige Genres wählen',
+        'tuning' => 'Feinabstimmung zufällig einstellen',
+    ],
+
     'atmosphere' => [
         'title' => 'Das haben wir herausgehört',
         'subtitle' => 'Lass es so oder tippe auf eine Option, um die Stimmung zu ändern. Gefühle und Genres lassen sich kombinieren.',

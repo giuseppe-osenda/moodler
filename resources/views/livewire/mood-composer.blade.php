@@ -81,10 +81,15 @@
 
                     @foreach ($this->atmosphereGroups() as $field => $group)
                         <fieldset wire:key="group-{{ $field }}" @if ($group['limit']) x-data="optionSearch(@js($field))" @endif>
-                            <legend class="mb-2 text-xs font-semibold tracking-widest text-white/40 uppercase">
-                                {{ $group['label'] }}
+                            <legend class="mb-2 flex w-full items-center justify-between gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
+                                <span>
+                                    {{ $group['label'] }}
+                                    @if ($group['limit'])
+                                        <span class="ml-1 font-normal tracking-normal normal-case text-white/30">· {{ __('moodler.atmosphere.pick_up_to', ['max' => $group['limit']]) }}</span>
+                                    @endif
+                                </span>
                                 @if ($group['limit'])
-                                    <span class="ml-1 font-normal tracking-normal normal-case text-white/30">· {{ __('moodler.atmosphere.pick_up_to', ['max' => $group['limit']]) }}</span>
+                                    <x-shuffle-button :label="__('moodler.shuffle.'.$field)" x-on:click="shuffle({{ $group['limit'] }})" />
                                 @endif
                             </legend>
 
@@ -167,20 +172,23 @@
             @endif
 
             @if ($this->showsTuning())
-                <div id="section-tuning" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-white/10 pt-7" wire:key="section-tuning">
-                    <div>
-                        <p class="mb-1 text-xs font-semibold tracking-widest text-ember-300/80 uppercase">3 · {{ __('moodler.steps.tuning') }}</p>
-                        <h2 class="font-display text-2xl font-medium text-white">{{ __('moodler.tuning.title') }}</h2>
-                        <p class="mt-1 text-sm text-white/50">{{ __('moodler.tuning.subtitle') }}</p>
+                <div id="section-tuning" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-white/10 pt-7" wire:key="section-tuning" x-data="tuningShuffle">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="mb-1 text-xs font-semibold tracking-widest text-ember-300/80 uppercase">3 · {{ __('moodler.steps.tuning') }}</p>
+                            <h2 class="font-display text-2xl font-medium text-white">{{ __('moodler.tuning.title') }}</h2>
+                            <p class="mt-1 text-sm text-white/50">{{ __('moodler.tuning.subtitle') }}</p>
+                        </div>
+                        <x-shuffle-button :label="__('moodler.shuffle.tuning')" x-on:click="shuffle()" class="mt-1" />
                     </div>
 
                     @foreach ($this->tuningKnobs() as $field => $knob)
                         <div wire:key="knob-{{ $field }}">
                             <div class="mb-2 flex items-baseline justify-between">
                                 <label for="knob-{{ $field }}" class="text-sm font-medium text-white">{{ $knob['label'] }}</label>
-                                <span class="text-xs tabular-nums text-white/40">{{ $this->{$field} }}</span>
+                                <span class="text-xs tabular-nums text-white/40 transition-colors" data-knob-value="{{ $field }}">{{ $this->{$field} }}</span>
                             </div>
-                            <input id="knob-{{ $field }}" type="range" min="0" max="100" step="5" class="knob" wire:model.live.debounce.250ms="{{ $field }}">
+                            <input id="knob-{{ $field }}" type="range" min="0" max="100" step="5" class="knob" data-knob="{{ $field }}" wire:model.live.debounce.250ms="{{ $field }}">
                             <div class="mt-1 flex justify-between text-xs text-white/40">
                                 <span>{{ $knob['low'] }}</span>
                                 <span>{{ $knob['high'] }}</span>

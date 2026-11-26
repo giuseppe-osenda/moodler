@@ -20,6 +20,12 @@ return [
         'replace_note' => 'Relire remplacera l’ambiance et les réglages que vous avez choisis.',
     ],
 
+    'shuffle' => [
+        'moods' => 'Choisir des humeurs au hasard',
+        'genres' => 'Choisir des genres au hasard',
+        'tuning' => 'Régler les nuances au hasard',
+    ],
+
     'atmosphere' => [
         'title' => 'Voici ce que nous avons compris',
         'subtitle' => 'Gardez-la ou touchez une option pour changer d’ambiance. Humeurs et genres peuvent se combiner.',
@@ -122,6 +128,7 @@ return [
         'Friends' => 'Amis',
         'Lovers' => 'En couple',
         'Classical' => 'Classique',
+        'Latin' => 'Latino',
     ],
 
     'mood_descriptions' => [

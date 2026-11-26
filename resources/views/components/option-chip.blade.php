@@ -13,6 +13,9 @@
     data-value="{{ $option['value'] }}"
     data-search="{{ $option['value'] }} {{ $option['label'] }}"
     data-selected="{{ $selected ? 'true' : 'false' }}"
+    @if ($option['builtIn'] ?? false)
+        data-builtin
+    @endif
     @if (filled($option['description'] ?? null))
         data-tooltip="{{ $option['description'] }}"
         aria-description="{{ $option['description'] }}"

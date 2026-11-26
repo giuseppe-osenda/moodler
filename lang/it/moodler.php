@@ -20,6 +20,12 @@ return [
         'replace_note' => 'Rileggendolo, l’atmosfera e le sfumature che hai scelto verranno sostituite.',
     ],
 
+    'shuffle' => [
+        'moods' => 'Scegli mood a caso',
+        'genres' => 'Scegli generi a caso',
+        'tuning' => 'Sfumature a caso',
+    ],
+
     'atmosphere' => [
         'title' => 'Ecco cosa abbiamo capito',
         'subtitle' => 'Tienilo così, oppure tocca qualsiasi voce per cambiare atmosfera. Mood e generi si possono combinare.',
@@ -122,6 +128,7 @@ return [
         'Friends' => 'Amici',
         'Lovers' => 'In coppia',
         'Classical' => 'Classica',
+        'Latin' => 'Latino',
     ],
 
     'mood_descriptions' => [

@@ -93,6 +93,125 @@ window.addEventListener('paddle-checkout', (event) => {
     window.Paddle.Checkout.open(event.detail.options);
 });
 
+const ROULETTE_TICKS = 14;
+const ROULETTE_FIRST_TICK_MS = 45;
+const ROULETTE_LAST_TICK_MS = 210;
+const KNOB_SHUFFLE_DURATION_MS = 900;
+const KNOB_SHUFFLE_STAGGER_MS = 120;
+
+function prefersReducedMotion() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomStep(min, max, step) {
+    return min + step * Math.floor(Math.random() * ((max - min) / step + 1));
+}
+
+function pickRandom(items, count) {
+    const pool = [...items];
+
+    for (let index = pool.length - 1; index > 0; index--) {
+        const other = Math.floor(Math.random() * (index + 1));
+        [pool[index], pool[other]] = [pool[other], pool[index]];
+    }
+
+    return pool.slice(0, count);
+}
+
+/**
+ * One to `limit` chips, preferably not the ones already selected.
+ */
+function drawDifferentChips(chips, limit) {
+    const current = chips.filter((chip) => chip.dataset.selected === 'true').map((chip) => chip.dataset.value).sort().join('|');
+    let drawn = [];
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+        drawn = pickRandom(chips, 1 + Math.floor(Math.random() * Math.min(limit, chips.length)));
+
+        if (drawn.map((chip) => chip.dataset.value).sort().join('|') !== current) {
+            break;
+        }
+    }
+
+    return drawn;
+}
+
+/**
+ * Light up random chips at a slowing pace, ending on the drawn ones.
+ */
+async function spinRoulette(chips, drawn) {
+    let lit = [];
+
+    for (let tick = 0; tick <= ROULETTE_TICKS; tick++) {
+        lit.forEach((chip) => chip.classList.remove('chip-roulette'));
+        lit = tick === ROULETTE_TICKS ? drawn : pickRandom(chips, drawn.length);
+        lit.forEach((chip) => chip.classList.add('chip-roulette'));
+
+        const progress = tick / ROULETTE_TICKS;
+        await wait(ROULETTE_FIRST_TICK_MS + (ROULETTE_LAST_TICK_MS - ROULETTE_FIRST_TICK_MS) * progress * progress);
+    }
+
+    await wait(ROULETTE_LAST_TICK_MS);
+}
+
+function celebrate(elements, className) {
+    elements.forEach((element) => {
+        element.classList.remove(className);
+        void element.offsetWidth;
+        element.classList.add(className);
+        element.addEventListener('animationend', () => element.classList.remove(className), { once: true });
+    });
+}
+
+function easeInOutCubic(progress) {
+    return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+}
+
+/**
+ * Move a range input and its value label to `target`, without sending each step to the server.
+ */
+async function slideKnob(knob, label, target, delay) {
+    await wait(delay);
+
+    const start = Number(knob.value);
+    const step = knob.step;
+    // Finer steps while sliding, so the thumb glides instead of jumping by five.
+    knob.step = '1';
+    knob.classList.add('knob-shuffling');
+    label?.classList.add('knob-value-shuffling');
+
+    await new Promise((resolve) => {
+        const startedAt = performance.now();
+
+        const frame = (now) => {
+            const progress = Math.min((now - startedAt) / KNOB_SHUFFLE_DURATION_MS, 1);
+            const value = Math.round(start + (target - start) * easeInOutCubic(progress));
+
+            knob.value = value;
+
+            if (label) {
+                label.textContent = value;
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(frame);
+            } else {
+                resolve();
+            }
+        };
+
+        requestAnimationFrame(frame);
+    });
+
+    knob.step = step;
+    knob.classList.remove('knob-shuffling');
+    label?.classList.remove('knob-value-shuffling');
+}
+
 document.addEventListener('alpine:init', () => {
     /**
      * Search box for a group of mood or genre chips. Typing filters the chips at once;
@@ -102,6 +221,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('optionSearch', (field) => ({
         query: '',
         searching: false,
+        shuffling: false,
 
         get term() {
             return normalizeForSearch(this.query);
@@ -167,6 +287,74 @@ document.addEventListener('alpine:init', () => {
         clear() {
             this.query = '';
             this.searching = false;
+        },
+
+        /**
+         * Draw built-in options at random. Chips light up in turn, slowing down like a
+         * roulette, until they settle on the drawn ones, which the server then applies.
+         */
+        async shuffle(limit) {
+            if (this.shuffling) {
+                return;
+            }
+
+            this.clear();
+            await this.$nextTick();
+
+            const chips = [...this.$refs.options.querySelectorAll('[data-builtin]')];
+            const drawn = drawDifferentChips(chips, limit);
+
+            if (drawn.length === 0) {
+                return;
+            }
+
+            this.shuffling = true;
+
+            try {
+                if (!prefersReducedMotion()) {
+                    await spinRoulette(chips, drawn);
+                }
+
+                await this.$wire.applyShuffle(field, drawn.map((chip) => chip.dataset.value));
+                await this.$nextTick();
+                celebrate(this.$refs.options.querySelectorAll('[data-selected="true"]'), 'chip-landed');
+            } finally {
+                chips.forEach((chip) => chip.classList.remove('chip-roulette'));
+                this.shuffling = false;
+            }
+        },
+    }));
+
+    /**
+     * Slide every tuning knob to a random value, one after the other, then let the server apply them.
+     */
+    window.Alpine.data('tuningShuffle', () => ({
+        shuffling: false,
+
+        async shuffle() {
+            if (this.shuffling) {
+                return;
+            }
+
+            const knobs = [...this.$root.querySelectorAll('input[data-knob]')];
+            const targets = Object.fromEntries(knobs.map((knob) => [knob.dataset.knob, randomStep(5, 95, 5)]));
+
+            this.shuffling = true;
+
+            try {
+                if (!prefersReducedMotion()) {
+                    await Promise.all(knobs.map((knob, index) => slideKnob(
+                        knob,
+                        this.$root.querySelector(`[data-knob-value="${knob.dataset.knob}"]`),
+                        targets[knob.dataset.knob],
+                        index * KNOB_SHUFFLE_STAGGER_MS,
+                    )));
+                }
+
+                await this.$wire.applyTuningShuffle(targets);
+            } finally {
+                this.shuffling = false;
+            }
         },
     }));
 

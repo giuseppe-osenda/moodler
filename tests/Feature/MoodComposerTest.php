@@ -230,6 +230,58 @@ class MoodComposerTest extends TestCase
             ->assertSet('tracks', []);
     }
 
+    public function test_shuffling_applies_only_built_in_moods_and_genres_up_to_the_limit(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('applyShuffle', 'genres', ['Jazz', 'Made Up', 42, 'Jazz', 'Funk', 'Soul', 'Rock'])
+            ->assertSet('genres', ['Jazz', 'Funk', 'Soul'])
+            ->call('applyShuffle', 'moods', ['Cozy'])
+            ->assertSet('moods', ['Cozy'])
+            ->call('applyShuffle', 'moods', ['Wistful', 'Nope'])
+            ->assertSet('moods', ['Cozy'])
+            ->call('applyShuffle', 'relationship', ['Friends'])
+            ->assertSet('relationship', 'Lovers');
+    }
+
+    public function test_shuffling_the_knobs_snaps_them_to_the_sliders(): void
+    {
+        $this->fakeApis();
+
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->set('popularity', 40)
+            ->call('applyTuningShuffle', ['energy' => 87, 'popularity' => 'loud', 'instrumentalness' => 140, 'phrase' => 'hacked'])
+            ->assertSet('energy', 85)
+            ->assertSet('popularity', 40)
+            ->assertSet('instrumentalness', 100)
+            ->assertSet('phrase', 'sunset with my girlfriend');
+    }
+
+    public function test_only_built_in_chips_can_be_drawn_by_the_shuffle_buttons(): void
+    {
+        $this->fakeApis();
+
+        $html = Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->call('revealTuning')
+            ->assertSeeHtml('aria-label="'.e(__('moodler.shuffle.moods')).'"')
+            ->assertSeeHtml('aria-label="'.e(__('moodler.shuffle.genres')).'"')
+            ->assertSeeHtml('aria-label="'.e(__('moodler.shuffle.tuning')).'"')
+            ->html();
+
+        $chip = fn (string $value): string => preg_match('/<button[^>]*data-value="'.preg_quote($value, '/').'"[^>]*>/', $html, $match) ? $match[0] : '';
+
+        $this->assertStringContainsString('data-builtin', $chip('Jazz'));
+        $this->assertNotSame('', $chip('Soft Rock'));
+        $this->assertStringNotContainsString('data-builtin', $chip('Soft Rock'));
+    }
+
     public function test_built_in_mood_and_genre_chips_carry_their_description(): void
     {
         $this->fakeApis();

@@ -14,10 +14,10 @@ return [
         'title' => "What's the moment?",
         'subtitle' => 'A situation, a feeling, a memory. Moodler turns it into music.',
         'placeholder' => 'e.g. sunset drive with my girlfriend after a long week',
-        'submit' => 'Read my mood',
-        'submit_again' => 'Read my mood again',
-        'submitting' => 'Reading your mood…',
-        'replace_note' => 'Reading it again replaces the atmosphere and knobs you picked.',
+        'submit' => 'Turn this moment into music',
+        'submit_again' => 'Turn it into music again',
+        'submitting' => 'Translating your moment…',
+        'replace_note' => 'Turning it into music again replaces the atmosphere and knobs you picked.',
     ],
 
     'shuffle' => [
@@ -27,9 +27,9 @@ return [
     ],
 
     'atmosphere' => [
-        'title' => "Here's what we heard",
+        'title' => 'The right atmosphere for you',
         'subtitle' => 'Keep it, or tap anything to change the vibe. Moods and genres can be combined.',
-        'next' => 'Fine-tune',
+        'next' => 'Refine the mix',
         'pick_up_to' => 'up to :max',
         'search' => [
             'moods' => ['placeholder' => 'Search moods…', 'more' => 'More moods found', 'empty' => 'No mood found for “:query”. Try another word.'],
@@ -58,9 +58,9 @@ return [
 
     'actions' => [
         'pending' => 'New settings — remix to hear them.',
-        'create' => 'Create my list',
+        'create' => 'Generate my playlist',
         'remix' => 'Remix',
-        'mixing' => 'Mixing your songs…',
+        'mixing' => 'Generating your perfect playlist…',
         'restart' => 'Start over',
         'restart_confirm' => 'Start over from scratch? Your current list will be cleared.',
     ],
@@ -153,6 +153,7 @@ return [
 
     'auth' => [
         'menu' => 'Account',
+        'open_menu' => 'Open menu',
         'login' => 'Sign in',
         'logout' => 'Sign out',
         'register' => 'Sign up',

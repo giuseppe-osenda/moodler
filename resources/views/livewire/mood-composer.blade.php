@@ -16,37 +16,31 @@
             x-text="text"
             x-bind:style="`left: ${x}px; top: ${y}px`"
             aria-hidden="true"
-            class="pointer-events-none fixed z-50 max-w-64 rounded-xl bg-ink-950/95 px-3 py-2 text-xs leading-relaxed text-white/85 shadow-xl ring-1 ring-white/15 backdrop-blur"
+            class="pointer-events-none fixed z-50 max-w-64 rounded-xl bg-ink/95 px-3 py-2 text-xs leading-relaxed text-white/90 backdrop-blur"
         ></div>
     </div>
 
     <x-page-header>
-        <label class="flex items-center gap-2 text-xs text-white/50">
-            <span class="sr-only sm:not-sr-only">{{ __('moodler.language') }}</span>
-            <select
-                wire:model.live="locale"
-                class="rounded-full border border-white/10 bg-ink-900 py-1.5 pr-8 pl-3 text-sm text-white/85 transition hover:border-white/25 focus:border-ember-400 focus:ring-2 focus:ring-ember-400/30 focus:outline-none"
-            >
-                @foreach ($this->supportedLocales() as $code => $name)
-                    <option value="{{ $code }}" lang="{{ $code }}">{{ $name }}</option>
-                @endforeach
-            </select>
-        </label>
+        <x-language-menu :locales="$this->supportedLocales()" :current="$locale" />
+
+        <x-slot:mobile>
+            <x-language-menu variant="list" :locales="$this->supportedLocales()" :current="$locale" />
+        </x-slot:mobile>
     </x-page-header>
 
     <x-subscription-banner :state="$subscriptionState" />
 
     <div @class([
-        'grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' => $this->hasList,
+        'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' => $this->hasList,
         'mx-auto max-w-xl' => ! $this->hasList,
     ])>
         {{-- Left: the game board --}}
-        <section class="rounded-3xl border border-white/10 bg-ink-900/80 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
+        <section class="rounded-3xl border border-ink/10 bg-white/65 p-5 backdrop-blur sm:p-7">
             <form id="section-moment" wire:submit="interpret" class="scroll-mt-6 space-y-4" wire:key="section-moment">
                 <div>
-                    <p class="mb-1 text-xs font-semibold tracking-widest text-ember-300/80 uppercase">1 · {{ __('moodler.steps.moment') }}</p>
-                    <label for="phrase" class="font-display text-2xl font-medium text-white">{{ __('moodler.phrase.title') }}</label>
-                    <p class="mt-1 text-sm text-white/50">{{ __('moodler.phrase.subtitle') }}</p>
+                    <p class="mb-1 text-xs font-semibold tracking-widest text-ink/45 uppercase">1 · {{ __('moodler.steps.moment') }}</p>
+                    <label for="phrase" class="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ __('moodler.phrase.title') }}</label>
+                    <p class="mt-1 text-sm text-ink/55">{{ __('moodler.phrase.subtitle') }}</p>
                 </div>
                 <textarea
                     id="phrase"
@@ -54,38 +48,38 @@
                     rows="3"
                     maxlength="280"
                     placeholder="{{ __('moodler.phrase.placeholder') }}"
-                    class="w-full resize-none rounded-2xl border border-white/10 bg-ink-950/60 px-4 py-3 text-lg text-white placeholder:text-white/30 focus:border-ember-400 focus:ring-2 focus:ring-ember-400/30 focus:outline-none"
+                    class="w-full resize-none rounded-2xl border border-ink/10 bg-white/80 px-4 py-3 text-lg text-ink placeholder:text-ink/40 focus:border-ink focus:ring-2 focus:ring-lilac-300/50 focus:outline-none"
                 ></textarea>
-                @error('phrase') <p class="text-sm text-red-300">{{ $message }}</p> @enderror
+                @error('phrase') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
 
                 @if ($errorKey === 'interpret')
-                    <div class="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">{{ __('moodler.errors.interpret') }}</div>
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ __('moodler.errors.interpret') }}</div>
                 @endif
 
-                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ember-400 px-5 py-3 font-semibold text-ink-950 transition hover:bg-ember-300 disabled:opacity-60" wire:loading.attr="disabled" wire:target="interpret">
+                <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink px-5 py-3 font-semibold text-white transition hover:bg-ink/85 disabled:opacity-60" wire:loading.attr="disabled" wire:target="interpret">
                     <span wire:loading.remove wire:target="interpret">{{ $this->hasProfile() ? __('moodler.phrase.submit_again') : __('moodler.phrase.submit') }}</span>
                     <span wire:loading wire:target="interpret">{{ __('moodler.phrase.submitting') }}</span>
                 </button>
                 @if ($this->hasProfile())
-                    <p class="text-center text-xs text-white/40">{{ __('moodler.phrase.replace_note') }}</p>
+                    <p class="text-center text-xs text-ink/50">{{ __('moodler.phrase.replace_note') }}</p>
                 @endif
             </form>
 
             @if ($this->showsAtmosphere())
-                <div id="section-atmosphere" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-white/10 pt-7" wire:key="section-atmosphere">
+                <div id="section-atmosphere" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-ink/10 pt-7" wire:key="section-atmosphere">
                     <div>
-                        <p class="mb-1 text-xs font-semibold tracking-widest text-ember-300/80 uppercase">2 · {{ __('moodler.steps.atmosphere') }}</p>
-                        <h2 class="font-display text-2xl font-medium text-white">{{ __('moodler.atmosphere.title') }}</h2>
-                        <p class="mt-1 text-sm text-white/50">{{ __('moodler.atmosphere.subtitle') }}</p>
+                        <p class="mb-1 text-xs font-semibold tracking-widest text-ink/45 uppercase">2 · {{ __('moodler.steps.atmosphere') }}</p>
+                        <h2 class="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ __('moodler.atmosphere.title') }}</h2>
+                        <p class="mt-1 text-sm text-ink/55">{{ __('moodler.atmosphere.subtitle') }}</p>
                     </div>
 
                     @foreach ($this->atmosphereGroups() as $field => $group)
-                        <fieldset wire:key="group-{{ $field }}" @if ($group['limit']) x-data="optionSearch(@js($field))" @endif>
-                            <legend class="mb-2 flex w-full items-center justify-between gap-3 text-xs font-semibold tracking-widest text-white/40 uppercase">
+                        <fieldset wire:key="group-{{ $field }}" class="tint-{{ $field }}" @if ($group['limit']) x-data="optionSearch(@js($field))" @endif>
+                            <legend class="mb-2 flex w-full items-center justify-between gap-3 text-xs font-semibold tracking-widest text-ink/50 uppercase">
                                 <span>
                                     {{ $group['label'] }}
                                     @if ($group['limit'])
-                                        <span class="ml-1 font-normal tracking-normal normal-case text-white/30">· {{ __('moodler.atmosphere.pick_up_to', ['max' => $group['limit']]) }}</span>
+                                        <span class="ml-1 font-normal tracking-normal normal-case text-ink/45">· {{ __('moodler.atmosphere.pick_up_to', ['max' => $group['limit']]) }}</span>
                                     @endif
                                 </span>
                                 @if ($group['limit'])
@@ -95,7 +89,7 @@
 
                             @if ($group['limit'])
                                 <div class="relative mb-3">
-                                    <svg class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/35" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <svg class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink/45" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                         <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.45 4.39l3.08 3.08a.75.75 0 1 1-1.06 1.06l-3.08-3.08A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
                                     </svg>
                                     <input
@@ -108,9 +102,9 @@
                                         spellcheck="false"
                                         placeholder="{{ __("moodler.atmosphere.search.{$field}.placeholder") }}"
                                         aria-label="{{ __("moodler.atmosphere.search.{$field}.placeholder") }}"
-                                        class="w-full rounded-xl border border-white/10 bg-ink-950/60 py-2 pr-9 pl-9 text-sm text-white placeholder:text-white/30 transition focus:border-ember-400 focus:ring-2 focus:ring-ember-400/30 focus:outline-none"
+                                        class="w-full rounded-xl border border-ink/10 bg-white/80 py-2 pr-9 pl-9 text-sm text-ink placeholder:text-ink/40 transition focus:border-ink focus:ring-2 focus:ring-lilac-300/50 focus:outline-none"
                                     >
-                                    <span x-show="searching" x-cloak class="absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-white/15 border-t-ember-300" role="status">
+                                    <span x-show="searching" x-cloak class="absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-ink/10 border-t-lilac-500" role="status">
                                         <span class="sr-only">{{ __('moodler.atmosphere.search.searching') }}</span>
                                     </span>
                                 </div>
@@ -131,7 +125,7 @@
                                     @else
                                         <label wire:key="{{ $field }}-{{ $option['value'] }}" class="cursor-pointer">
                                             <input type="radio" class="peer sr-only" wire:model.live="{{ $field }}" value="{{ $option['value'] }}">
-                                            <span class="inline-block rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition peer-checked:border-ember-400 peer-checked:bg-ember-400 peer-checked:text-ink-950 peer-focus-visible:ring-2 peer-focus-visible:ring-ember-300 hover:bg-white/10">{{ $option['label'] }}</span>
+                                            <span class="inline-block rounded-full border border-ink/10 bg-white/70 px-3 py-1.5 text-sm text-ink/75 transition peer-checked:border-(--tint-edge) peer-checked:bg-(--tint) peer-checked:text-(--tint-deep) peer-checked:font-semibold peer-focus-visible:ring-2 peer-focus-visible:ring-lilac-400 hover:border-ink/30 hover:text-ink">{{ $option['label'] }}</span>
                                         </label>
                                     @endif
                                 @endforeach
@@ -140,8 +134,8 @@
                             @if ($group['limit'])
                                 @php($results = $this->catalogResults($field))
                                 @if ($results !== [])
-                                    <div x-show="isCurrent" class="mt-3 rounded-2xl border border-dashed border-white/10 p-3">
-                                        <p class="mb-2 text-xs text-white/45">{{ __("moodler.atmosphere.search.{$field}.more") }}</p>
+                                    <div x-show="isCurrent" class="mt-3 rounded-2xl border border-dashed border-ink/10 p-3">
+                                        <p class="mb-2 text-xs text-ink/55">{{ __("moodler.atmosphere.search.{$field}.more") }}</p>
                                         <div class="flex flex-wrap gap-2">
                                             @foreach ($results as $result)
                                                 <x-option-chip
@@ -156,15 +150,15 @@
                                 @endif
 
                                 <div aria-live="polite">
-                                    <p x-show="showEmpty" x-cloak x-text="{{ Js::from(__("moodler.atmosphere.search.{$field}.empty")) }}.replace(':query', query.trim())" class="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100"></p>
-                                    <p x-show="showFailed" x-cloak class="mt-3 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">{{ __('moodler.atmosphere.search.failed') }}</p>
+                                    <p x-show="showEmpty" x-cloak x-text="{{ Js::from(__("moodler.atmosphere.search.{$field}.empty")) }}.replace(':query', query.trim())" class="mt-3 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900"></p>
+                                    <p x-show="showFailed" x-cloak class="mt-3 rounded-xl border border-rose-300/70 bg-rose-50 px-3 py-2 text-sm text-rose-900">{{ __('moodler.atmosphere.search.failed') }}</p>
                                 </div>
                             @endif
                         </fieldset>
                     @endforeach
 
                     @unless ($this->showsTuning())
-                        <button type="button" wire:click="revealTuning" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/15">
+                        <button type="button" wire:click="revealTuning" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-ink/10 bg-white/90 px-5 py-3 font-semibold text-ink transition hover:bg-white">
                             {{ __('moodler.atmosphere.next') }} <span aria-hidden="true">↓</span>
                         </button>
                     @endunless
@@ -172,12 +166,12 @@
             @endif
 
             @if ($this->showsTuning())
-                <div id="section-tuning" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-white/10 pt-7" wire:key="section-tuning" x-data="tuningShuffle">
+                <div id="section-tuning" class="mt-8 animate-rise-in scroll-mt-6 space-y-6 border-t border-ink/10 pt-7" wire:key="section-tuning" x-data="tuningShuffle">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="mb-1 text-xs font-semibold tracking-widest text-ember-300/80 uppercase">3 · {{ __('moodler.steps.tuning') }}</p>
-                            <h2 class="font-display text-2xl font-medium text-white">{{ __('moodler.tuning.title') }}</h2>
-                            <p class="mt-1 text-sm text-white/50">{{ __('moodler.tuning.subtitle') }}</p>
+                            <p class="mb-1 text-xs font-semibold tracking-widest text-ink/45 uppercase">3 · {{ __('moodler.steps.tuning') }}</p>
+                            <h2 class="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ __('moodler.tuning.title') }}</h2>
+                            <p class="mt-1 text-sm text-ink/55">{{ __('moodler.tuning.subtitle') }}</p>
                         </div>
                         <x-shuffle-button :label="__('moodler.shuffle.tuning')" x-on:click="shuffle()" class="mt-1" />
                     </div>
@@ -185,11 +179,11 @@
                     @foreach ($this->tuningKnobs() as $field => $knob)
                         <div wire:key="knob-{{ $field }}">
                             <div class="mb-2 flex items-baseline justify-between">
-                                <label for="knob-{{ $field }}" class="text-sm font-medium text-white">{{ $knob['label'] }}</label>
-                                <span class="text-xs tabular-nums text-white/40 transition-colors" data-knob-value="{{ $field }}">{{ $this->{$field} }}</span>
+                                <label for="knob-{{ $field }}" class="text-sm font-medium text-ink">{{ $knob['label'] }}</label>
+                                <span class="text-xs tabular-nums text-ink/50 transition-colors" data-knob-value="{{ $field }}">{{ $this->{$field} }}</span>
                             </div>
-                            <input id="knob-{{ $field }}" type="range" min="0" max="100" step="5" class="knob" data-knob="{{ $field }}" wire:model.live.debounce.250ms="{{ $field }}">
-                            <div class="mt-1 flex justify-between text-xs text-white/40">
+                            <input id="knob-{{ $field }}" type="range" min="0" max="100" step="5" class="knob" style="--val: {{ $this->{$field} }}%" data-knob="{{ $field }}" wire:model.live.debounce.250ms="{{ $field }}">
+                            <div class="mt-1 flex justify-between text-xs text-ink/50">
                                 <span>{{ $knob['low'] }}</span>
                                 <span>{{ $knob['high'] }}</span>
                             </div>
@@ -200,24 +194,24 @@
 
             {{-- Action bar --}}
             @if ($this->showsTuning())
-                <div class="mt-8 space-y-3 border-t border-white/10 pt-5">
+                <div class="mt-8 space-y-3 border-t border-ink/10 pt-5">
                     @if (in_array($errorKey, ['compose', 'no_tracks'], true))
-                        <div class="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert">{{ __("moodler.errors.{$errorKey}") }}</div>
+                        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ __("moodler.errors.{$errorKey}") }}</div>
                     @endif
 
                     @if ($this->hasPendingChanges)
-                        <p class="flex items-center gap-2 text-xs text-ember-300" wire:key="pending-changes">
-                            <span class="size-1.5 animate-pulse rounded-full bg-ember-400"></span>
+                        <p class="flex items-center gap-2 text-xs text-lilac-700" wire:key="pending-changes">
+                            <span class="size-1.5 animate-pulse rounded-full bg-lilac-500"></span>
                             {{ __('moodler.actions.pending') }}
                         </p>
                     @endif
 
-                    <button type="button" wire:click="compose" wire:loading.attr="disabled" wire:target="compose" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-ember-400 to-dusk-400 px-5 py-3.5 font-semibold text-ink-950 shadow-lg shadow-ember-500/20 transition hover:brightness-110 disabled:opacity-60">
+                    <button type="button" wire:click="compose" wire:loading.attr="disabled" wire:target="compose" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink px-5 py-4 text-lg font-semibold text-white transition hover:bg-ink/85 disabled:opacity-60">
                             <span wire:loading.remove wire:target="compose">{{ $this->hasList ? __('moodler.actions.remix') : __('moodler.actions.create') }}</span>
                             <span wire:loading wire:target="compose">{{ __('moodler.actions.mixing') }}</span>
                         </button>
 
-                    <button type="button" wire:click="restart" @if ($this->hasList) wire:confirm="{{ __('moodler.actions.restart_confirm') }}" @endif class="w-full rounded-2xl px-5 py-2 text-sm text-white/50 transition hover:bg-white/5 hover:text-white/80">
+                    <button type="button" wire:click="restart" @if ($this->hasList) wire:confirm="{{ __('moodler.actions.restart_confirm') }}" @endif class="w-full rounded-2xl px-5 py-2 text-sm text-ink/55 transition hover:bg-white/70 hover:text-ink/80">
                         {{ __('moodler.actions.restart') }}
                     </button>
                 </div>
@@ -228,19 +222,19 @@
         @if ($this->hasList)
             <section
                 id="section-player"
-                class="relative animate-rise-in scroll-mt-6 rounded-3xl border border-white/10 bg-ink-900/80 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7 lg:sticky lg:top-8"
+                class="relative min-w-0 animate-rise-in scroll-mt-6 rounded-3xl border border-ink/10 bg-white/65 p-4 backdrop-blur sm:p-7 lg:sticky lg:top-8"
                 x-data="trackPlayer(@js($this->playerTracks()))"
                 x-on:tracks-updated.window="load($event.detail.tracks)"
                 wire:key="player"
             >
                 <div class="mb-4 flex items-start justify-between gap-4">
                     <div class="min-w-0">
-                        <p class="text-xs font-semibold tracking-widest text-white/40 uppercase">{{ __('moodler.player.your_list') }}</p>
-                        <p class="mt-1 truncate font-display text-xl text-white">{{ $this->openedPlaylistName ?? '“'.$phrase.'”' }}</p>
+                        <p class="text-xs font-semibold tracking-widest text-ink/50 uppercase">{{ __('moodler.player.your_list') }}</p>
+                        <p class="mt-1 truncate font-display text-xl font-bold tracking-tight text-ink">{{ $this->openedPlaylistName ?? '“'.$phrase.'”' }}</p>
                     </div>
                     <button
                         type="button"
-                        class="shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10"
+                        class="shrink-0 rounded-full border border-ink/10 px-3 py-1.5 text-xs text-ink/70 transition hover:bg-ink/5"
                         x-on:click="copy(@js(collect($tracks)->map(fn ($track) => $track['title'].' — '.$track['artists'])->implode("\n")))"
                     >
                         <span x-show="! copied">{{ __('moodler.player.copy') }}</span>
@@ -250,43 +244,43 @@
 
                 {{-- YouTube player: nothing is looked up until the listener presses play. --}}
                 @if ($this->youtubeEnabled())
-                    <div class="relative aspect-video overflow-hidden rounded-2xl bg-ink-950/60">
+                    <div class="relative aspect-video overflow-hidden rounded-2xl bg-linear-135 from-mint-300 via-azure-300 to-lilac-300">
                         <div wire:ignore class="absolute inset-0"><div x-ref="youtubeEmbed"></div></div>
 
                         <button
                             type="button"
                             x-show="! youtubeStarted && ! resolving"
                             x-on:click="play(current)"
-                            class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80 transition hover:text-white"
+                            class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-ink/80 transition hover:text-ink"
                         >
-                            <span class="grid size-14 place-items-center rounded-full bg-ember-400 text-ink-950 shadow-lg shadow-ember-500/30">
+                            <span class="grid size-14 place-items-center rounded-full bg-ink text-white">
                                 <svg class="ml-1 size-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.34-5.89a1.5 1.5 0 0 0 0-2.54L6.3 2.84Z" /></svg>
                             </span>
                             <span class="text-sm font-medium">{{ __('moodler.player.start') }}</span>
                         </button>
 
-                        <div x-show="resolving" x-cloak class="absolute inset-0 flex items-center justify-center gap-3 bg-ink-950/70 text-sm text-white/70">
-                            <span class="size-5 animate-spin rounded-full border-2 border-white/15 border-t-ember-400"></span>
+                        <div x-show="resolving" x-cloak class="absolute inset-0 flex items-center justify-center gap-3 bg-white/80 text-sm text-ink/70">
+                            <span class="size-5 animate-spin rounded-full border-2 border-ink/10 border-t-lilac-500"></span>
                             {{ __('moodler.player.resolving') }}
                         </div>
                     </div>
                 @else
-                    <p class="rounded-2xl border border-white/10 bg-ink-950/60 px-4 py-3 text-sm text-white/65">{{ __('moodler.player.no_playback') }}</p>
+                    <p class="rounded-2xl border border-ink/10 bg-white/80 px-4 py-3 text-sm text-ink/65">{{ __('moodler.player.no_playback') }}</p>
                 @endif
 
                 <div aria-live="polite">
-                    <p x-show="notice === 'youtube_missing'" x-cloak class="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">{{ __('moodler.player.youtube_missing') }}</p>
-                    <div x-show="notice === 'youtube_unavailable'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">
+                    <p x-show="notice === 'youtube_missing'" x-cloak class="mt-3 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ __('moodler.player.youtube_missing') }}</p>
+                    <div x-show="notice === 'youtube_unavailable'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/70 bg-rose-50 px-3 py-2 text-sm text-rose-900">
                         <span>{{ __('moodler.player.youtube_unavailable') }}</span>
-                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.listen_on_spotify') }}</a>
+                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-ink hover:bg-white">{{ __('moodler.player.listen_on_spotify') }}</a>
                     </div>
-                    <div x-show="notice === 'youtube_limited'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+                    <div x-show="notice === 'youtube_limited'" x-cloak class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                         <span x-text="{{ Js::from(__('moodler.player.youtube_limited')) }}.replace(':minutes', retryMinutes)"></span>
-                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">{{ __('moodler.player.listen_on_spotify') }}</a>
+                        <a x-bind:href="currentSpotifyUrl()" target="_blank" rel="noopener" class="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-ink hover:bg-white">{{ __('moodler.player.listen_on_spotify') }}</a>
                     </div>
                 </div>
 
-                <ol class="mt-4 max-h-[60vh] space-y-1 overflow-y-auto pr-1">
+                <ol class="mt-4 max-h-[60vh] space-y-1 overflow-y-auto sm:pr-1">
                     @foreach ($tracks as $index => $track)
                         <li wire:key="track-{{ $track['id'] }}">
                             <div
@@ -297,22 +291,22 @@
                                     x-on:keydown.enter.prevent="play({{ $index }})"
                                 @endif
                                 @class([
-                                    'group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none',
-                                    'cursor-pointer hover:bg-white/5' => $this->youtubeEnabled(),
+                                    'group flex w-full items-center gap-2.5 rounded-xl px-1.5 py-2 text-left sm:gap-3 sm:px-2 transition focus-visible:ring-2 focus-visible:ring-lilac-400 focus-visible:outline-none',
+                                    'cursor-pointer hover:bg-white/70' => $this->youtubeEnabled(),
                                 ])
-                                x-bind:class="{ 'bg-white/10': current === {{ $index }}, 'opacity-40': missing.includes({{ $index }}) }"
+                                x-bind:class="{ 'bg-lilac-200/60': current === {{ $index }}, 'opacity-40': missing.includes({{ $index }}) }"
                             >
-                                <span class="w-5 shrink-0 text-right text-xs tabular-nums text-white/35" x-bind:class="current === {{ $index }} ? 'text-ember-300!' : ''">{{ $index + 1 }}</span>
+                                <span class="w-4 shrink-0 text-right text-xs tabular-nums text-ink/45 sm:w-5" x-bind:class="current === {{ $index }} ? 'text-lilac-700!' : ''">{{ $index + 1 }}</span>
                                 @if ($track['imageUrl'])
                                     <img src="{{ $track['imageUrl'] }}" alt="" class="size-10 shrink-0 rounded-md object-cover" loading="lazy">
                                 @else
-                                    <span class="size-10 shrink-0 rounded-md bg-white/10"></span>
+                                    <span class="size-10 shrink-0 rounded-md bg-lilac-200"></span>
                                 @endif
                                 <span class="min-w-0 flex-1">
-                                    <span class="block truncate text-sm font-medium text-white" x-bind:class="current === {{ $index }} ? 'text-ember-300!' : ''">{{ $track['title'] }}</span>
-                                    <span class="block truncate text-xs text-white/50">{{ $track['artists'] }}</span>
+                                    <span class="block truncate text-sm font-medium text-ink" x-bind:class="current === {{ $index }} ? 'text-lilac-700!' : ''">{{ $track['title'] }}</span>
+                                    <span class="block truncate text-xs text-ink/55">{{ $track['artists'] }}</span>
                                 </span>
-                                <span class="shrink-0 text-xs tabular-nums text-white/35">{{ sprintf('%d:%02d', intdiv(intdiv($track['durationMs'], 1000), 60), intdiv($track['durationMs'], 1000) % 60) }}</span>
+                                <span class="hidden shrink-0 text-xs tabular-nums text-ink/45 min-[400px]:inline">{{ sprintf('%d:%02d', intdiv(intdiv($track['durationMs'], 1000), 60), intdiv($track['durationMs'], 1000) % 60) }}</span>
                                 {{-- Saving to a Spotify library needs the listener's Spotify login, which Spotify only allows a few test users: the track opens in Spotify instead. --}}
                                 <a
                                     href="{{ $track['url'] }}"
@@ -321,7 +315,7 @@
                                     x-on:click.stop
                                     data-tooltip="{{ __('moodler.player.save_on_spotify') }}"
                                     aria-label="{{ __('moodler.player.save_on_spotify_label', ['title' => $track['title']]) }}"
-                                    class="grid size-8 shrink-0 place-items-center rounded-full text-[#1DB954]/75 transition hover:bg-white/10 hover:text-[#1DB954] focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none"
+                                    class="grid size-8 shrink-0 place-items-center rounded-full text-[#1DB954]/75 transition hover:bg-ink/5 hover:text-[#1DB954] focus-visible:ring-2 focus-visible:ring-lilac-400 focus-visible:outline-none"
                                 ><svg class="size-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21Zm4.82 15.15a.65.65 0 0 1-.9.22c-2.46-1.5-5.56-1.84-9.21-1.01a.66.66 0 1 1-.29-1.28c4-.91 7.42-.52 10.18 1.17.31.19.41.59.22.9Zm1.28-2.86a.82.82 0 0 1-1.13.27c-2.82-1.73-7.11-2.23-10.44-1.22a.82.82 0 1 1-.48-1.57c3.8-1.15 8.53-.6 11.78 1.4.39.23.51.73.27 1.12Zm.11-2.98C14.83 8.8 9.27 8.62 6.05 9.6a.98.98 0 1 1-.57-1.88c3.7-1.12 9.84-.9 13.72 1.4a.98.98 0 1 1-1 1.69Z"/></svg></a>
                             </div>
                         </li>
@@ -329,55 +323,55 @@
                 </ol>
 
                 {{-- Saving: what it offers depends on whether the player is signed in and subscribed. --}}
-                <div class="mt-5 rounded-2xl border border-white/10 bg-ink-950/40 p-4" wire:key="save-panel-{{ $this->saveMode() }}">
+                <div class="mt-5 rounded-2xl border border-ink/10 bg-white/50 p-4" wire:key="save-panel-{{ $this->saveMode() }}">
                     @if ($this->saveMode() === 'guest')
-                        <p class="text-sm text-white/65">{{ __('moodler.save.guest_pitch') }}</p>
-                        <button type="button" wire:click="signInToSave" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
+                        <p class="text-sm text-ink/65">{{ __('moodler.save.guest_pitch') }}</p>
+                        <button type="button" wire:click="signInToSave" class="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-ink/10 bg-white/90 px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-white">
                             {{ __('moodler.save.sign_in') }}
                         </button>
                     @elseif ($this->saveMode() === 'subscribe')
-                        <p class="text-sm text-white/65">{{ __('moodler.save.subscribe_pitch') }}</p>
-                        <button type="button" wire:click="startCheckout" wire:loading.attr="disabled" wire:target="startCheckout" class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300 disabled:opacity-60">
+                        <p class="text-sm text-ink/65">{{ __('moodler.save.subscribe_pitch') }}</p>
+                        <button type="button" wire:click="startCheckout" wire:loading.attr="disabled" wire:target="startCheckout" class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink/85 disabled:opacity-60">
                             <span wire:loading.remove wire:target="startCheckout">{{ __('moodler.save.subscribe', ['price' => __('moodler.checkout.price')]) }}</span>
                             <span wire:loading wire:target="startCheckout">{{ __('moodler.checkout.opening') }}</span>
                         </button>
                         @if ($errorKey === 'checkout')
-                            <p class="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" role="alert">{{ __('moodler.errors.checkout') }}</p>
+                            <p class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{ __('moodler.errors.checkout') }}</p>
                         @endif
                     @else
                         <form wire:submit="savePlaylist({{ $this->openedPlaylistName === null ? 'true' : 'false' }})" class="space-y-3">
-                            <label for="playlist-name" class="block text-xs font-semibold tracking-widest text-white/40 uppercase">{{ __('moodler.save.name') }}</label>
+                            <label for="playlist-name" class="block text-xs font-semibold tracking-widest text-ink/50 uppercase">{{ __('moodler.save.name') }}</label>
                             <input
                                 id="playlist-name"
                                 type="text"
                                 wire:model="playlistName"
                                 maxlength="{{ \App\Models\Playlist::MAX_NAME_LENGTH }}"
                                 placeholder="{{ $composedPrompt['phrase'] ?? $phrase }}"
-                                class="w-full rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-ember-400 focus:ring-2 focus:ring-ember-400/30 focus:outline-none"
+                                class="w-full rounded-xl border border-ink/10 bg-white/80 px-3 py-2 text-sm text-ink placeholder:text-ink/40 focus:border-ink focus:ring-2 focus:ring-lilac-300/50 focus:outline-none"
                             >
-                            <p class="text-xs text-white/35">{{ __('moodler.save.name_hint') }}</p>
-                            @error('playlistName') <p class="text-sm text-red-300">{{ $message }}</p> @enderror
+                            <p class="text-xs text-ink/45">{{ __('moodler.save.name_hint') }}</p>
+                            @error('playlistName') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
 
-                            <div class="flex flex-wrap gap-2">
+                            <div class="flex flex-col gap-2 sm:flex-row">
                                 @if ($this->openedPlaylistName !== null)
-                                    <button type="submit" class="flex-1 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300">
+                                    <button type="submit" class="flex-1 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink/85">
                                         {{ __('moodler.save.overwrite', ['name' => Str::limit($this->openedPlaylistName, 40)]) }}
                                     </button>
-                                    <button type="button" wire:click="savePlaylist(true)" class="flex-1 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
+                                    <button type="button" wire:click="savePlaylist(true)" class="flex-1 rounded-xl border border-ink/10 bg-white/90 px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-white">
                                         {{ __('moodler.save.as_new') }}
                                     </button>
                                 @else
-                                    <button type="submit" class="flex-1 rounded-xl bg-ember-400 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-ember-300">
+                                    <button type="submit" class="flex-1 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink/85">
                                         {{ __('moodler.save.save') }}
                                     </button>
                                 @endif
                             </div>
 
                             @if ($this->hasPendingChanges)
-                                <p class="text-xs text-white/45">{{ __('moodler.save.pending_note') }}</p>
+                                <p class="text-xs text-ink/55">{{ __('moodler.save.pending_note') }}</p>
                             @endif
                             @if ($playlistNotice)
-                                <p class="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-sm text-emerald-100" role="status" wire:key="playlist-notice-{{ $playlistNotice }}">
+                                <p class="rounded-xl border border-emerald-300/70 bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status" wire:key="playlist-notice-{{ $playlistNotice }}">
                                     {{ __("moodler.save.{$playlistNotice}") }}
                                     <a href="{{ route('playlists.index') }}" wire:navigate class="ml-1 underline underline-offset-4">{{ __('moodler.save.view_all') }}</a>
                                 </p>
@@ -386,14 +380,14 @@
                     @endif
                 </div>
 
-                <p class="mt-4 text-center text-xs text-white/35">
+                <p class="mt-4 text-center text-xs text-ink/45">
                     @if ($this->youtubeEnabled()) {{ __('moodler.player.youtube_note') }} @endif
                     {{ __('moodler.player.spotify_note') }}
                 </p>
 
-                <div wire:loading.flex wire:target="compose" class="absolute inset-0 z-10 flex-col items-center justify-center gap-3 rounded-3xl bg-ink-950/80 backdrop-blur-sm">
-                    <span class="size-8 animate-spin rounded-full border-2 border-white/15 border-t-ember-400"></span>
-                    <span class="text-sm text-white/70">{{ __('moodler.player.mixing') }}</span>
+                <div wire:loading.flex wire:target="compose" class="absolute inset-0 z-10 flex-col items-center justify-center gap-3 rounded-3xl bg-white/80 backdrop-blur-sm">
+                    <span class="size-8 animate-spin rounded-full border-2 border-ink/10 border-t-lilac-500"></span>
+                    <span class="text-sm text-ink/70">{{ __('moodler.player.mixing') }}</span>
                 </div>
             </section>
         @endif

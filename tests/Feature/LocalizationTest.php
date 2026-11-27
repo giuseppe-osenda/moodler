@@ -58,12 +58,17 @@ class LocalizationTest extends TestCase
             ->assertSee('<html lang="en"', false);
     }
 
-    public function test_the_selector_lists_every_supported_language(): void
+    public function test_the_language_menu_lists_every_supported_language_and_marks_the_current_one(): void
     {
         $response = $this->get('/', ['Accept-Language' => '']);
 
+        $response->assertSee('aria-label="'.__('moodler.language').'"', false);
+
         foreach (config('app.supported_locales') as $code => $name) {
-            $response->assertSee('<option value="'.$code.'" lang="'.$code.'">'.$name.'</option>', false);
+            $this->assertMatchesRegularExpression(
+                '/role="menuitemradio"\s+aria-checked="'.($code === 'it' ? 'true' : 'false').'"\s+lang="'.$code.'"[^>]*>\s*'.preg_quote($name, '/').'/',
+                $response->getContent(),
+            );
         }
     }
 

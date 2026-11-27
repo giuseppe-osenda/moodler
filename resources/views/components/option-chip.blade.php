@@ -21,5 +21,5 @@
         aria-description="{{ $option['description'] }}"
     @endif
     @disabled($disabled)
-    {{ $attributes->class('rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-ember-300 focus-visible:outline-none aria-pressed:border-ember-400 aria-pressed:bg-ember-400 aria-pressed:text-ink-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/5') }}
+    {{ $attributes->class('rounded-full border border-ink/10 bg-white/70 px-3 py-1.5 text-sm text-ink/75 transition hover:border-ink/30 hover:text-ink focus-visible:ring-2 focus-visible:ring-lilac-400 focus-visible:outline-none aria-pressed:border-(--tint-edge) aria-pressed:bg-(--tint) aria-pressed:text-(--tint-deep) aria-pressed:font-semibold disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-ink/10 disabled:hover:text-ink/75') }}
 >{{ $option['label'] }}</button>

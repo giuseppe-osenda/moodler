@@ -192,6 +192,7 @@ async function slideKnob(knob, label, target, delay) {
             const value = Math.round(start + (target - start) * easeInOutCubic(progress));
 
             knob.value = value;
+            paintKnob(knob);
 
             if (label) {
                 label.textContent = value;
@@ -211,6 +212,19 @@ async function slideKnob(knob, label, target, delay) {
     knob.classList.remove('knob-shuffling');
     label?.classList.remove('knob-value-shuffling');
 }
+
+/**
+ * Sliders show their value as a filled track; the fill width comes from --val.
+ */
+function paintKnob(knob) {
+    knob.style.setProperty('--val', `${knob.value}%`);
+}
+
+document.addEventListener('input', (event) => {
+    if (event.target.matches?.('input.knob')) {
+        paintKnob(event.target);
+    }
+});
 
 document.addEventListener('alpine:init', () => {
     /**

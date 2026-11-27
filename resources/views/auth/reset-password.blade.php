@@ -6,6 +6,6 @@
         <x-text-field name="password" type="password" :label="__('moodler.auth.new_password')" autocomplete="new-password" required autofocus />
         <x-text-field name="password_confirmation" type="password" :label="__('moodler.auth.password_confirmation')" autocomplete="new-password" required />
 
-        <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-ember-400 px-5 py-3 font-semibold text-ink-950 transition hover:bg-ember-300">{{ __('moodler.auth.reset') }}</button>
+        <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-ink px-5 py-3 font-semibold text-white transition hover:bg-ink/85">{{ __('moodler.auth.reset') }}</button>
     </form>
 </x-auth-card>

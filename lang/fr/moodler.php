@@ -14,10 +14,10 @@ return [
         'title' => 'Quel moment vivez-vous ?',
         'subtitle' => 'Une situation, une émotion, un souvenir. Moodler le transforme en musique.',
         'placeholder' => 'ex. coucher de soleil en voiture avec ma copine après une longue semaine',
-        'submit' => 'Lire mon humeur',
-        'submit_again' => 'Relire mon humeur',
-        'submitting' => 'Lecture de votre humeur…',
-        'replace_note' => 'Relire remplacera l’ambiance et les réglages que vous avez choisis.',
+        'submit' => 'Transformer ce moment en musique',
+        'submit_again' => 'Le transformer à nouveau en musique',
+        'submitting' => 'Traduction de votre moment…',
+        'replace_note' => 'Le transformer à nouveau remplacera l’ambiance et les réglages que vous avez choisis.',
     ],
 
     'shuffle' => [
@@ -27,9 +27,9 @@ return [
     ],
 
     'atmosphere' => [
-        'title' => 'Voici ce que nous avons compris',
+        'title' => 'L’ambiance qu’il vous faut',
         'subtitle' => 'Gardez-la ou touchez une option pour changer d’ambiance. Humeurs et genres peuvent se combiner.',
-        'next' => 'Ajuster les nuances',
+        'next' => 'Peaufiner le mix',
         'pick_up_to' => 'jusqu’à :max',
         'search' => [
             'moods' => ['placeholder' => 'Rechercher une humeur…', 'more' => 'Autres humeurs trouvées', 'empty' => 'Aucune humeur trouvée pour « :query ». Essayez un autre mot.'],
@@ -58,9 +58,9 @@ return [
 
     'actions' => [
         'pending' => 'Nouveaux réglages : remixez pour les écouter.',
-        'create' => 'Créer ma liste',
+        'create' => 'Générer ma playlist',
         'remix' => 'Remixer',
-        'mixing' => 'Mixage de vos morceaux…',
+        'mixing' => 'Création de votre playlist parfaite…',
         'restart' => 'Recommencer',
         'restart_confirm' => 'Tout recommencer ? Votre liste actuelle sera effacée.',
     ],
@@ -182,6 +182,7 @@ return [
 
     'auth' => [
         'menu' => 'Compte',
+        'open_menu' => 'Ouvrir le menu',
         'login' => 'Se connecter',
         'logout' => 'Se déconnecter',
         'register' => 'S\'inscrire',

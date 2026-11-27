@@ -4,7 +4,7 @@
 @if ($providers !== [])
     <div class="space-y-2">
         @foreach ($providers as $provider)
-            <a href="{{ route('social.redirect', $provider) }}" class="flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10">
+            <a href="{{ route('social.redirect', $provider) }}" class="flex w-full items-center justify-center gap-3 rounded-xl border border-ink/10 bg-white/70 px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-white/90">
                 @if ($provider === 'google')
                     <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.66 4.1-5.5 4.1-3.3 0-6-2.74-6-6.1s2.7-6.1 6-6.1c1.88 0 3.14.8 3.86 1.49l2.63-2.54C16.8 3.4 14.6 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12s4.3 9.6 9.6 9.6c5.54 0 9.2-3.9 9.2-9.38 0-.63-.07-1.11-.15-1.6H12Z"/></svg>
                 @else
@@ -15,9 +15,9 @@
         @endforeach
     </div>
 
-    <div class="my-5 flex items-center gap-3 text-xs text-white/35">
-        <span class="h-px flex-1 bg-white/10"></span>
+    <div class="my-5 flex items-center gap-3 text-xs text-ink/45">
+        <span class="h-px flex-1 bg-ink/10"></span>
         {{ __('moodler.auth.or') }}
-        <span class="h-px flex-1 bg-white/10"></span>
+        <span class="h-px flex-1 bg-ink/10"></span>
     </div>
 @endif

@@ -31,6 +31,23 @@ class AuthenticationTest extends TestCase
         $this->withCookie('locale', 'de')->get(route('password.request'))->assertOk()->assertSee('Passwort zurücksetzen');
     }
 
+    public function test_the_phone_menu_holds_the_languages_and_the_account_links(): void
+    {
+        $guestMenu = $this->phoneMenu($this->withCookie('locale', 'it')->get(route('home'))->assertOk()->getContent());
+
+        $this->assertStringContainsString('aria-label="Apri il menu"', $guestMenu['button']);
+        $this->assertStringContainsString(route('login'), $guestMenu['panel']);
+        $this->assertMatchesRegularExpression('/aria-pressed="true"\s+lang="it"/', $guestMenu['panel']);
+        $this->assertStringContainsString('lang="de"', $guestMenu['panel']);
+
+        $playerMenu = $this->phoneMenu($this->actingAs(User::factory()->create())->get(route('home'))->getContent());
+
+        $this->assertStringNotContainsString(route('login'), $playerMenu['panel']);
+        $this->assertStringContainsString(route('playlists.index'), $playerMenu['panel']);
+        $this->assertStringContainsString(route('account'), $playerMenu['panel']);
+        $this->assertStringContainsString(route('logout'), $playerMenu['panel']);
+    }
+
     public function test_social_buttons_appear_only_for_configured_providers(): void
     {
         $this->get(route('login'))->assertDontSee(route('social.redirect', 'google'));
@@ -136,5 +153,19 @@ class AuthenticationTest extends TestCase
         }
 
         Socialite::shouldReceive('driver')->with($provider)->andReturn($driver);
+    }
+
+    /**
+     * Split a page into the hamburger button and the phone menu panel it opens.
+     *
+     * @return array{button: string, panel: string}
+     */
+    private function phoneMenu(string $html): array
+    {
+        $this->assertMatchesRegularExpression('/<button[^>]*aria-controls="mobile-menu"[^>]*>/s', $html);
+        preg_match('/<button[^>]*aria-controls="mobile-menu"[^>]*>/s', $html, $button);
+        preg_match('/<div\s+id="mobile-menu".*?<\/header>/s', $html, $panel);
+
+        return ['button' => $button[0], 'panel' => $panel[0] ?? ''];
     }
 }

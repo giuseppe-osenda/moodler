@@ -14,10 +14,10 @@ return [
         'title' => 'Welchen Moment erlebst du gerade?',
         'subtitle' => 'Eine Situation, ein Gefühl, eine Erinnerung. Moodler macht Musik daraus.',
         'placeholder' => 'z. B. Sonnenuntergang im Auto mit meiner Freundin nach einer langen Woche',
-        'submit' => 'Lies meine Stimmung',
-        'submit_again' => 'Stimmung neu lesen',
-        'submitting' => 'Deine Stimmung wird gelesen…',
-        'replace_note' => 'Beim erneuten Lesen werden die gewählte Stimmung und die Regler ersetzt.',
+        'submit' => 'Verwandle diesen Moment in Musik',
+        'submit_again' => 'Noch einmal in Musik verwandeln',
+        'submitting' => 'Dein Moment wird übersetzt…',
+        'replace_note' => 'Beim erneuten Verwandeln werden die gewählte Stimmung und die Regler ersetzt.',
     ],
 
     'shuffle' => [
@@ -27,9 +27,9 @@ return [
     ],
 
     'atmosphere' => [
-        'title' => 'Das haben wir herausgehört',
+        'title' => 'Die passende Stimmung für dich',
         'subtitle' => 'Lass es so oder tippe auf eine Option, um die Stimmung zu ändern. Gefühle und Genres lassen sich kombinieren.',
-        'next' => 'Zum Feinschliff',
+        'next' => 'Mix verfeinern',
         'pick_up_to' => 'bis zu :max',
         'search' => [
             'moods' => ['placeholder' => 'Gefühl suchen…', 'more' => 'Weitere gefundene Gefühle', 'empty' => 'Kein Gefühl für „:query“ gefunden. Versuch ein anderes Wort.'],
@@ -58,9 +58,9 @@ return [
 
     'actions' => [
         'pending' => 'Neue Einstellungen: remixe, um sie zu hören.',
-        'create' => 'Meine Liste erstellen',
+        'create' => 'Meine Playlist erstellen',
         'remix' => 'Remixen',
-        'mixing' => 'Deine Songs werden gemischt…',
+        'mixing' => 'Deine perfekte Playlist entsteht…',
         'restart' => 'Neu anfangen',
         'restart_confirm' => 'Ganz von vorn beginnen? Deine aktuelle Liste wird gelöscht.',
     ],
@@ -181,6 +181,7 @@ return [
 
     'auth' => [
         'menu' => 'Konto',
+        'open_menu' => 'Menü öffnen',
         'login' => 'Anmelden',
         'logout' => 'Abmelden',
         'register' => 'Registrieren',

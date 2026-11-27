@@ -14,10 +14,10 @@ return [
         'title' => '¿Qué momento estás viviendo?',
         'subtitle' => 'Una situación, una emoción, un recuerdo. Moodler lo convierte en música.',
         'placeholder' => 'p. ej. atardecer en el coche con mi novia tras una semana larga',
-        'submit' => 'Lee mi mood',
-        'submit_again' => 'Vuelve a leer mi mood',
-        'submitting' => 'Leyendo tu mood…',
-        'replace_note' => 'Al volver a leerlo se reemplazarán el ambiente y los matices que elegiste.',
+        'submit' => 'Convierte este momento en música',
+        'submit_again' => 'Conviértelo de nuevo en música',
+        'submitting' => 'Traduciendo tu momento…',
+        'replace_note' => 'Al convertirlo de nuevo se reemplazarán el ambiente y los matices que elegiste.',
     ],
 
     'shuffle' => [
@@ -27,9 +27,9 @@ return [
     ],
 
     'atmosphere' => [
-        'title' => 'Esto es lo que entendimos',
+        'title' => 'El ambiente perfecto para ti',
         'subtitle' => 'Déjalo así o toca cualquier opción para cambiar el ambiente. Puedes combinar moods y géneros.',
-        'next' => 'Ajustar matices',
+        'next' => 'Afina la mezcla',
         'pick_up_to' => 'hasta :max',
         'search' => [
             'moods' => ['placeholder' => 'Busca un mood…', 'more' => 'Más moods encontrados', 'empty' => 'No encontramos ningún mood para «:query». Prueba con otra palabra.'],
@@ -58,9 +58,9 @@ return [
 
     'actions' => [
         'pending' => 'Nuevos ajustes: remezcla para escucharlos.',
-        'create' => 'Crear mi lista',
+        'create' => 'Generar mi playlist',
         'remix' => 'Remezclar',
-        'mixing' => 'Mezclando tus canciones…',
+        'mixing' => 'Generando tu playlist perfecta…',
         'restart' => 'Empezar de nuevo',
         'restart_confirm' => '¿Empezar desde cero? Tu lista actual se borrará.',
     ],
@@ -182,6 +182,7 @@ return [
 
     'auth' => [
         'menu' => 'Cuenta',
+        'open_menu' => 'Abrir el menú',
         'login' => 'Iniciar sesión',
         'logout' => 'Cerrar sesión',
         'register' => 'Registrarse',

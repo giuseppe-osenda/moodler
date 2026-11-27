@@ -14,10 +14,10 @@ return [
         'title' => 'Che momento stai vivendo?',
         'subtitle' => 'Una situazione, un’emozione, un ricordo. Moodler lo trasforma in musica.',
         'placeholder' => 'es. tramonto in macchina con la mia ragazza dopo una lunga settimana',
-        'submit' => 'Leggi il mio mood',
-        'submit_again' => 'Rileggi il mio mood',
-        'submitting' => 'Sto leggendo il tuo mood…',
-        'replace_note' => 'Rileggendolo, l’atmosfera e le sfumature che hai scelto verranno sostituite.',
+        'submit' => 'Trasforma il momento in musica',
+        'submit_again' => 'Trasformalo di nuovo in musica',
+        'submitting' => 'Sto traducendo il tuo momento…',
+        'replace_note' => 'Trasformandolo di nuovo, l’atmosfera e le sfumature che hai scelto verranno sostituite.',
     ],
 
     'shuffle' => [
@@ -27,9 +27,9 @@ return [
     ],
 
     'atmosphere' => [
-        'title' => 'Ecco cosa abbiamo capito',
+        'title' => 'L’atmosfera giusta per te',
         'subtitle' => 'Tienilo così, oppure tocca qualsiasi voce per cambiare atmosfera. Mood e generi si possono combinare.',
-        'next' => 'Regola le sfumature',
+        'next' => 'Rifinisci il mix',
         'pick_up_to' => 'fino a :max',
         'search' => [
             'moods' => ['placeholder' => 'Cerca un mood…', 'more' => 'Altri mood trovati', 'empty' => 'Nessun mood trovato per «:query». Prova con un’altra parola.'],
@@ -58,9 +58,9 @@ return [
 
     'actions' => [
         'pending' => 'Nuove impostazioni: rimescola per ascoltarle.',
-        'create' => 'Crea la mia lista',
+        'create' => 'Genera la mia playlist',
         'remix' => 'Rimescola',
-        'mixing' => 'Sto mescolando i brani…',
+        'mixing' => 'Sto generando la tua playlist perfetta…',
         'restart' => 'Ricomincia',
         'restart_confirm' => 'Ricominciare da capo? La lista attuale verrà cancellata.',
     ],
@@ -182,6 +182,7 @@ return [
 
     'auth' => [
         'menu' => 'Account',
+        'open_menu' => 'Apri il menu',
         'login' => 'Accedi',
         'logout' => 'Esci',
         'register' => 'Registrati',

@@ -228,6 +228,31 @@
     }
 }
 
+/* Long-form text on the privacy and terms pages. */
+.legal-text {
+    @apply space-y-4 text-[0.95rem] leading-relaxed text-ink/75;
+}
+
+.legal-text h2 {
+    @apply pt-4 font-display text-xl font-bold tracking-tight text-ink;
+}
+
+.legal-text ul {
+    @apply list-disc space-y-2 pl-5 marker:text-lilac-400;
+}
+
+.legal-text a {
+    @apply font-medium text-lilac-700 underline underline-offset-4 hover:text-lilac-900;
+}
+
+.legal-text strong {
+    @apply font-semibold text-ink;
+}
+
+.legal-text code {
+    @apply rounded bg-ink/5 px-1 py-0.5 text-[0.85em];
+}
+
 /* The colour a selected chip takes, set per group of choices. */
 .tint-moods {
     --tint: var(--color-lilac-200);

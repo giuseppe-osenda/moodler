@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\MoodComposer;
+use App\Models\User;
 use App\Services\YouTubeClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -423,6 +424,46 @@ class MoodComposerTest extends TestCase
         $limited = $component->instance()->youtubeVideo($youtube, 1);
         $this->assertSame('limited', $limited['status']);
         $this->assertGreaterThan(0, $limited['retryAfter']);
+    }
+
+    public function test_ai_readings_and_track_lists_share_an_hourly_limit_per_visitor(): void
+    {
+        $this->fakeApis();
+
+        $component = Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->assertSet('step', MoodComposer::STEP_ATMOSPHERE);
+
+        Http::assertSentCount(1);
+        RateLimiter::increment('ai-mixes:ip:127.0.0.1', 3600, 29);
+
+        $component->call('compose')
+            ->assertSet('errorKey', 'compose_limited')
+            ->assertSet('tracks', [])
+            ->assertSee(trans_choice('moodler.errors.limited', 60, ['minutes' => 60]));
+
+        $component->call('interpret')->assertSet('errorKey', 'interpret_limited');
+        Http::assertSentCount(1);
+
+        $this->actingAs(User::factory()->create());
+        Livewire::test(MoodComposer::class)
+            ->set('phrase', 'sunset with my girlfriend')
+            ->call('interpret')
+            ->assertSet('errorKey', null);
+    }
+
+    public function test_catalog_searches_stop_once_the_hourly_limit_is_spent(): void
+    {
+        $this->fakeApis(catalog: [['value' => 'Shoegaze', 'label' => 'Shoegaze', 'description' => 'Chitarre sognanti.']]);
+        RateLimiter::increment('ai-catalog-searches:ip:127.0.0.1', 3600, 60);
+
+        Livewire::test(MoodComposer::class)
+            ->call('searchCatalog', 'genres', 'shoegaze')
+            ->assertSet('catalogSearches.genres.failed', true)
+            ->assertSet('catalogSearches.genres.results', []);
+
+        Http::assertNothingSent();
     }
 
     public function test_the_player_gets_another_video_when_one_does_not_play_and_ignores_bogus_ids(): void

@@ -88,6 +88,7 @@ return [
         'compose' => 'Un problème est survenu lors du choix des morceaux. Réessayez.',
         'no_tracks' => 'Aucun morceau ne correspond à ce mix. Modifiez quelques réglages et remixez.',
         'checkout' => 'Impossible d\'ouvrir le paiement pour le moment. Réessayez dans un instant.',
+        'limited' => '{1} Vous avez fait beaucoup de demandes en peu de temps : réessayez dans une minute.|[2,*] Vous avez fait beaucoup de demandes en peu de temps : réessayez dans :minutes minutes.',
     ],
 
     'validation' => [
@@ -207,7 +208,6 @@ return [
         'reset' => 'Enregistrer le mot de passe',
         'or' => 'ou',
         'continue_with_google' => 'Continuer avec Google',
-        'continue_with_apple' => 'Continuer avec Apple',
         'social_failed' => 'La connexion a échoué. Réessayez ou utilisez votre e-mail et mot de passe.',
         'social_no_email' => 'Ce service ne nous a pas partagé votre e-mail : connectez-vous avec e-mail et mot de passe.',
         'verify' => [

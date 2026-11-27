@@ -20,6 +20,12 @@
     <body class="moodler-backdrop min-h-screen font-sans text-ink/90 antialiased">
         {{ $slot }}
 
+        <footer class="mx-auto max-w-6xl px-4 pb-8 text-center text-xs text-ink/50 sm:px-6">
+            <a href="{{ route('privacy') }}" class="rounded-full px-2 py-1 transition hover:text-ink">{{ __('legal.nav.privacy') }}</a>
+            <span aria-hidden="true">·</span>
+            <a href="{{ route('terms') }}" class="rounded-full px-2 py-1 transition hover:text-ink">{{ __('legal.nav.terms') }}</a>
+        </footer>
+
         @livewireScripts
     </body>
 </html>

@@ -55,19 +55,6 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
-    /*
-    | Sign in with Apple. The client secret is generated from the private key (.p8),
-    | so APPLE_CLIENT_SECRET stays empty. See socialiteproviders/apple.
-    */
-    'apple' => [
-        'client_id' => env('APPLE_CLIENT_ID'),
-        'client_secret' => env('APPLE_CLIENT_SECRET'),
-        'key_id' => env('APPLE_KEY_ID'),
-        'team_id' => env('APPLE_TEAM_ID'),
-        'private_key' => env('APPLE_PRIVATE_KEY'),
-        'redirect' => env('APPLE_REDIRECT_URI', '/auth/apple/callback'),
-    ],
-
     'paddle' => [
         'price_id' => env('PADDLE_PRICE_ID'),
     ],

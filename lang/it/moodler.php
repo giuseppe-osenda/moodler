@@ -88,6 +88,7 @@ return [
         'compose' => 'Qualcosa è andato storto nella scelta dei brani. Riprova.',
         'no_tracks' => 'Nessun brano corrisponde a questo mix. Prova a cambiare qualche impostazione e rimescola.',
         'checkout' => 'Non riusciamo ad aprire il pagamento in questo momento. Riprova tra poco.',
+        'limited' => '{1} Hai fatto tante richieste in poco tempo: riprova tra un minuto.|[2,*] Hai fatto tante richieste in poco tempo: riprova tra :minutes minuti.',
     ],
 
     'validation' => [
@@ -207,7 +208,6 @@ return [
         'reset' => 'Salva la password',
         'or' => 'oppure',
         'continue_with_google' => 'Continua con Google',
-        'continue_with_apple' => 'Continua con Apple',
         'social_failed' => 'Accesso non riuscito. Riprova o usa email e password.',
         'social_no_email' => 'Il servizio non ci ha condiviso la tua email: accedi con email e password.',
         'verify' => [

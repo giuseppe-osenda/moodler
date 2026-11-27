@@ -12,8 +12,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Paddle\Billable;
 
-#[Fillable(['name', 'email', 'password', 'google_id', 'apple_id', 'email_verified_at'])]
-#[Hidden(['password', 'remember_token', 'google_id', 'apple_id'])]
+#[Fillable(['name', 'email', 'password', 'google_id', 'email_verified_at'])]
+#[Hidden(['password', 'remember_token', 'google_id'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */

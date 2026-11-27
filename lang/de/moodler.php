@@ -88,6 +88,7 @@ return [
         'compose' => 'Bei der Songauswahl ist etwas schiefgelaufen. Bitte versuche es noch einmal.',
         'no_tracks' => 'Kein Song passt zu diesem Mix. Ändere ein paar Einstellungen und remixe.',
         'checkout' => 'Die Zahlung lässt sich gerade nicht öffnen. Versuch es gleich noch einmal.',
+        'limited' => '{1} Du hast in kurzer Zeit sehr viel angefragt: Versuch es in einer Minute noch einmal.|[2,*] Du hast in kurzer Zeit sehr viel angefragt: Versuch es in :minutes Minuten noch einmal.',
     ],
 
     'validation' => [
@@ -206,7 +207,6 @@ return [
         'reset' => 'Passwort speichern',
         'or' => 'oder',
         'continue_with_google' => 'Weiter mit Google',
-        'continue_with_apple' => 'Weiter mit Apple',
         'social_failed' => 'Anmeldung fehlgeschlagen. Versuch es erneut oder nutze E-Mail und Passwort.',
         'social_no_email' => 'Der Dienst hat uns deine E-Mail nicht mitgeteilt: Melde dich mit E-Mail und Passwort an.',
         'verify' => [

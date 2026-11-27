@@ -69,6 +69,17 @@ class MoodComposer extends Component
     private const YOUTUBE_LOOKUPS_PER_HOUR = 100;
 
     /**
+     * AI readings and track lists one visitor may ask for per hour, together: each one is a paid AI call.
+     * Plenty for someone remixing a list, low enough that a bot cannot run up the bill.
+     */
+    private const MIXES_PER_HOUR = 30;
+
+    /**
+     * AI searches for extra moods and genres one visitor may run per hour.
+     */
+    private const CATALOG_SEARCHES_PER_HOUR = 60;
+
+    /**
      * Videos of one track the player may report as unplayable in a single lookup.
      */
     private const MAX_UNPLAYABLE_VIDEOS = 5;
@@ -148,6 +159,12 @@ class MoodComposer extends Component
     #[Locked]
     public ?string $errorKey = null;
 
+    /**
+     * Minutes left before a visitor who hit the hourly limit can ask the AI again.
+     */
+    #[Locked]
+    public int $retryMinutes = 0;
+
     public string $locale = '';
 
     /**
@@ -220,6 +237,12 @@ class MoodComposer extends Component
         $this->validate(['phrase' => self::PHRASE_RULES], $this->phraseMessages());
         $this->errorKey = null;
 
+        if (! $this->spendAiBudget('mixes', self::MIXES_PER_HOUR)) {
+            $this->errorKey = 'interpret_limited';
+
+            return;
+        }
+
         try {
             $interpretation = $interpreter->interpret($this->phrase, App::getLocale());
         } catch (RuntimeException $exception) {
@@ -262,6 +285,13 @@ class MoodComposer extends Component
         ], $this->phraseMessages());
         $this->errorKey = null;
         $this->step = self::STEP_TUNING;
+
+        if (! $this->spendAiBudget('mixes', self::MIXES_PER_HOUR)) {
+            $this->errorKey = 'compose_limited';
+
+            return;
+        }
+
         $prompt = $this->prompt();
         $avoid = array_slice(array_values(array_unique([
             ...$this->heardSongs,
@@ -378,7 +408,9 @@ class MoodComposer extends Component
         $query = mb_substr(trim($query), 0, self::MAX_SEARCH_LENGTH);
         $search = ['query' => $query, 'results' => [], 'failed' => false];
 
-        if (mb_strlen($query) >= self::MIN_SEARCH_LENGTH) {
+        if (mb_strlen($query) >= self::MIN_SEARCH_LENGTH && ! $this->spendAiBudget('catalog-searches', self::CATALOG_SEARCHES_PER_HOUR)) {
+            $search['failed'] = true;
+        } elseif (mb_strlen($query) >= self::MIN_SEARCH_LENGTH) {
             try {
                 $search['results'] = array_map(
                     fn (CatalogEntry $entry): array => $entry->toArray(),
@@ -746,6 +778,26 @@ class MoodComposer extends Component
     public function playerTracks(): array
     {
         return array_map(fn (array $track): array => ['url' => $track['url']], $this->tracks);
+    }
+
+    /**
+     * Count one AI call against the visitor's hourly budget: the signed-in player's, or their IP address's.
+     * When the budget is spent nothing is counted, and the minutes until it frees up are kept for the message.
+     */
+    private function spendAiBudget(string $budget, int $perHour): bool
+    {
+        $visitor = $this->user() !== null ? 'user:'.$this->user()->getKey() : 'ip:'.request()->ip();
+        $key = "ai-{$budget}:{$visitor}";
+
+        if (RateLimiter::tooManyAttempts($key, $perHour)) {
+            $this->retryMinutes = max(1, (int) ceil(RateLimiter::availableIn($key) / 60));
+
+            return false;
+        }
+
+        RateLimiter::hit($key, 3600);
+
+        return true;
     }
 
     private function user(): ?User

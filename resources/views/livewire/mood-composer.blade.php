@@ -54,6 +54,8 @@
 
                 @if ($errorKey === 'interpret')
                     <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ __('moodler.errors.interpret') }}</div>
+                @elseif ($errorKey === 'interpret_limited')
+                    <div class="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">{{ trans_choice('moodler.errors.limited', $retryMinutes, ['minutes' => $retryMinutes]) }}</div>
                 @endif
 
                 <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ink px-5 py-3 font-semibold text-white transition hover:bg-ink/85 disabled:opacity-60" wire:loading.attr="disabled" wire:target="interpret">
@@ -197,6 +199,8 @@
                 <div class="mt-8 space-y-3 border-t border-ink/10 pt-5">
                     @if (in_array($errorKey, ['compose', 'no_tracks'], true))
                         <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ __("moodler.errors.{$errorKey}") }}</div>
+                    @elseif ($errorKey === 'compose_limited')
+                        <div class="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">{{ trans_choice('moodler.errors.limited', $retryMinutes, ['minutes' => $retryMinutes]) }}</div>
                     @endif
 
                     @if ($this->hasPendingChanges)

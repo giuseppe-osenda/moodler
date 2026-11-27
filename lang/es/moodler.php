@@ -88,6 +88,7 @@ return [
         'compose' => 'Algo salió mal al elegir tus canciones. Inténtalo de nuevo.',
         'no_tracks' => 'Ninguna canción encaja con esta mezcla. Cambia algunos ajustes y remezcla.',
         'checkout' => 'No podemos abrir el pago en este momento. Inténtalo de nuevo en breve.',
+        'limited' => '{1} Has hecho muchas peticiones en poco tiempo: vuelve a intentarlo en un minuto.|[2,*] Has hecho muchas peticiones en poco tiempo: vuelve a intentarlo en :minutes minutos.',
     ],
 
     'validation' => [
@@ -207,7 +208,6 @@ return [
         'reset' => 'Guardar contraseña',
         'or' => 'o',
         'continue_with_google' => 'Continuar con Google',
-        'continue_with_apple' => 'Continuar con Apple',
         'social_failed' => 'No se pudo iniciar sesión. Inténtalo de nuevo o usa email y contraseña.',
         'social_no_email' => 'El servicio no nos compartió tu email: inicia sesión con email y contraseña.',
         'verify' => [

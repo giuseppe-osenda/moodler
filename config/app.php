@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Search Engine Indexing
+    |--------------------------------------------------------------------------
+    |
+    | While false, every response asks search engines not to index the site,
+    | so it can be online for testers and API reviewers without being found.
+    |
+    */
+
+    'indexable' => (bool) env('APP_INDEXABLE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

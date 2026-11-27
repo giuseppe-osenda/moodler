@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\BlockSearchIndexing;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,10 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(BlockSearchIndexing::class);
         $middleware->web(append: [SetLocale::class]);
 
-        // Paddle webhooks and Apple's sign-in callback are posted by those services, without our CSRF token.
-        $middleware->validateCsrfTokens(except: ['paddle/*', 'auth/apple/callback']);
+        // Paddle webhooks are posted by Paddle, without our CSRF token.
+        $middleware->validateCsrfTokens(except: ['paddle/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

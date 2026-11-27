@@ -88,6 +88,7 @@ return [
         'compose' => 'Something went wrong while picking your songs. Please try again.',
         'no_tracks' => 'No songs matched this mix. Try changing a few settings and remix.',
         'checkout' => 'We can\'t open the payment right now. Please try again shortly.',
+        'limited' => '{1} You’ve asked for a lot in a short time: try again in a minute.|[2,*] You’ve asked for a lot in a short time: try again in :minutes minutes.',
     ],
 
     'validation' => [
@@ -178,7 +179,6 @@ return [
         'reset' => 'Save password',
         'or' => 'or',
         'continue_with_google' => 'Continue with Google',
-        'continue_with_apple' => 'Continue with Apple',
         'social_failed' => 'Sign-in failed. Try again or use your email and password.',
         'social_no_email' => 'That service didn\'t share your email with us: sign in with email and password.',
         'verify' => [

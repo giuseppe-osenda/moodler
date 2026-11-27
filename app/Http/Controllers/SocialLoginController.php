@@ -12,12 +12,12 @@ use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirect;
 use Throwable;
 
 /**
- * Sign in with Google or Apple. A returning person is found by their provider id, or by
+ * Sign in with Google. A returning person is found by their provider id, or by
  * their email the first time they use a provider, so accounts are never duplicated.
  */
 class SocialLoginController extends Controller
 {
-    public const PROVIDERS = ['google', 'apple'];
+    public const PROVIDERS = ['google'];
 
     /**
      * Whether a provider is supported and has credentials.
@@ -31,11 +31,7 @@ class SocialLoginController extends Controller
     {
         abort_unless(self::isEnabled($provider), 404);
 
-        $driver = Socialite::driver($provider);
-
-        return $provider === 'apple'
-            ? $driver->scopes(['name', 'email'])->redirect()
-            : $driver->redirect();
+        return Socialite::driver($provider)->redirect();
     }
 
     public function callback(string $provider): RedirectResponse
@@ -43,10 +39,7 @@ class SocialLoginController extends Controller
         abort_unless(self::isEnabled($provider), 404);
 
         try {
-            // Apple posts back cross-site, so the session (and its state) is not available.
-            $socialUser = $provider === 'apple'
-                ? Socialite::driver($provider)->stateless()->user()
-                : Socialite::driver($provider)->user();
+            $socialUser = Socialite::driver($provider)->user();
         } catch (Throwable $exception) {
             report($exception);
 

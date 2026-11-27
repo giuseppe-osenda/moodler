@@ -5,10 +5,7 @@ namespace App\Providers;
 use App\Services\OpenAiClient;
 use App\Services\SpotifyClient;
 use App\Services\YouTubeClient;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use SocialiteProviders\Apple\AppleExtendSocialite;
-use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +40,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Event::listen(SocialiteWasCalled::class, [AppleExtendSocialite::class, 'handle']);
+        //
     }
 }

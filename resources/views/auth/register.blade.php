@@ -9,6 +9,7 @@
         <x-text-field name="password_confirmation" type="password" :label="__('moodler.auth.password_confirmation')" autocomplete="new-password" required />
 
         <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-ink px-5 py-3 font-semibold text-white transition hover:bg-ink/85">{{ __('moodler.auth.register') }}</button>
+        <p class="text-center text-xs leading-relaxed text-ink/55 [&_a]:text-lilac-700 [&_a]:underline [&_a]:underline-offset-4">{!! Str::inlineMarkdown(__('legal.consent', ['terms' => route('terms'), 'privacy' => route('privacy')])) !!}</p>
     </form>
 
     <p class="mt-6 text-center text-sm text-ink/60">

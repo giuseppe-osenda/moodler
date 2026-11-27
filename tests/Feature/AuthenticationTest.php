@@ -21,7 +21,7 @@ class AuthenticationTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-        config(['services.google.client_id' => null, 'services.apple.client_id' => null]);
+        config(['services.google.client_id' => null]);
     }
 
     public function test_the_sign_in_screens_are_shown_in_the_players_language(): void
@@ -117,20 +117,10 @@ class AuthenticationTest extends TestCase
         $this->assertSame(1, User::count());
     }
 
-    public function test_apple_signs_in_returning_players_by_their_apple_id_even_without_an_email(): void
-    {
-        $user = User::factory()->create(['apple_id' => 'a-1']);
-        $this->fakeSocialUser('apple', id: 'a-1', email: null, name: null, stateless: true);
-
-        $this->post(route('social.callback', 'apple'))->assertRedirect(route('home'));
-
-        $this->assertAuthenticatedAs($user);
-    }
-
     public function test_a_failed_or_emailless_social_sign_in_goes_back_to_the_login_screen(): void
     {
-        $this->fakeSocialUser('apple', id: 'a-new', email: null, name: null, stateless: true);
-        $this->post(route('social.callback', 'apple'))->assertRedirect(route('login'))->assertSessionHasErrors('email');
+        $this->fakeSocialUser('google', id: 'g-new', email: null, name: null);
+        $this->get(route('social.callback', 'google'))->assertRedirect(route('login'))->assertSessionHasErrors('email');
 
         config(['services.google.client_id' => 'google-client']);
         Socialite::shouldReceive('driver')->with('google')->andThrow(new RuntimeException('Invalid state'));
@@ -140,7 +130,7 @@ class AuthenticationTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
-    private function fakeSocialUser(string $provider, string $id, ?string $email, ?string $name, bool $stateless = false): void
+    private function fakeSocialUser(string $provider, string $id, ?string $email, ?string $name): void
     {
         config(["services.{$provider}.client_id" => "{$provider}-client"]);
 
@@ -148,15 +138,11 @@ class AuthenticationTest extends TestCase
         $driver = Mockery::mock();
         $driver->shouldReceive('user')->andReturn($socialUser);
 
-        if ($stateless) {
-            $driver->shouldReceive('stateless')->andReturnSelf();
-        }
-
         Socialite::shouldReceive('driver')->with($provider)->andReturn($driver);
     }
 
     /**
-     * Split a page into the hamburger button and the phone menu panel it opens.
+     * Split a page into the menu button and the phone menu panel it opens.
      *
      * @return array{button: string, panel: string}
      */
